@@ -1,0 +1,78 @@
+<aside
+  id="sidebar"
+  class="relative z-20 hidden min-h-screen shrink-0 flex-col border-r border-zinc-800 bg-zinc-950 transition-[width] duration-200 md:flex md:w-64"
+  data-collapsed="false"
+>
+  <div class="flex items-center justify-between gap-2 border-b border-zinc-800 p-3">
+    <div class="sidebar-brand flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
+      {% if logo_url %}
+      <img src="{{ logo_url }}" alt="" class="h-9 w-9 shrink-0 rounded-lg object-contain" width="36" height="36" />
+      {% else %}
+      <div
+        class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-accent/60 bg-zinc-950 text-[10px] font-bold text-accent"
+        aria-hidden="true"
+      >
+        LOGO
+      </div>
+      {% endif %}
+      <div class="min-w-0 flex-1">
+        <p class="truncate text-sm font-semibold tracking-tight">{{ project_name }}</p>
+        {% set la0 = latest_by_platform['android'] %}
+        <p class="mt-1 truncate text-xs text-zinc-500">
+          App <span id="sidebar-app-version" class="font-mono text-accent">{{ la0.version if la0 else '—' }}</span>
+        </p>
+        <p class="truncate text-xs text-zinc-500">
+          Server <span id="sidebar-server-version" class="font-mono text-accent">{{ la0.server_version if la0 else '—' }}</span>
+        </p>
+      </div>
+    </div>
+    <button
+      type="button"
+      id="sidebar-toggle"
+      class="shrink-0 rounded-full border border-zinc-700 px-2 py-1 text-xs text-zinc-300 transition hover:border-accent hover:text-accent"
+      aria-expanded="true"
+      aria-label="Collapse sidebar"
+    >
+      <span class="icon-expand hidden">»</span>
+      <span class="icon-collapse">«</span>
+    </button>
+  </div>
+
+  <div class="sidebar-tabs flex min-h-0 flex-1 flex-col border-b border-zinc-800 p-2">
+    <p class="sidebar-tab-heading mb-2 px-2 text-[10px] font-medium uppercase tracking-wider text-zinc-500">Platform</p>
+    <nav class="flex flex-col gap-1 overflow-y-auto" aria-label="Platform">
+      {% for p in platform_tab_order %}
+      <button
+        type="button"
+        data-tab="{{ p }}"
+        aria-selected="{{ 'true' if p == 'android' else 'false' }}"
+        class="tab-btn flex w-full items-center gap-3 rounded-lg border px-2 py-2 text-left text-sm transition {% if p == 'android' %}border-accent/60 bg-zinc-800/80 text-accent{% else %}border-transparent text-zinc-400 hover:border-zinc-700 hover:bg-zinc-900 hover:text-zinc-200{% endif %}"
+      >
+        <span class="flex h-9 w-9 shrink-0 items-center justify-center text-base" aria-hidden="true">
+          {% if p == 'android' %}🤖{% elif p == 'apple' %}🍎{% elif p == 'windows' %}🪟{% elif p == 'linux' %}🐧{% else %}🌐{% endif %}
+        </span>
+        <span class="sidebar-tab-label min-w-0 truncate font-medium capitalize">{{ p }}</span>
+      </button>
+      {% endfor %}
+    </nav>
+  </div>
+
+  <div class="mt-auto border-t border-zinc-800 p-2">
+    <button
+      type="button"
+      id="open-upload-modal"
+      class="sidebar-upload-label flex w-full items-center justify-center rounded-full border border-accent bg-accent/10 px-3 py-2.5 text-sm font-medium text-accent transition hover:bg-accent/20"
+    >
+      Upload
+    </button>
+    <button
+      type="button"
+      id="open-upload-modal-icon"
+      class="sidebar-upload-icon mx-auto hidden h-11 w-11 shrink-0 items-center justify-center rounded-full border border-accent bg-accent/10 text-lg leading-none text-accent transition hover:bg-accent/20"
+      aria-label="Upload"
+      title="Upload"
+    >
+      ⬆
+    </button>
+  </div>
+</aside>

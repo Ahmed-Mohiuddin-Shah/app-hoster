@@ -1,0 +1,313 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="flex min-h-screen flex-col md:flex-row">
+  {% include "components/sidebar.html" %}
+
+  <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+    {% include "components/header.html" %}
+
+    <div class="platform-tabs-mobile border-b border-zinc-800 px-2 py-2 md:hidden">
+      <p class="mb-1 px-1 text-[10px] font-medium uppercase tracking-wider text-zinc-500">Platform</p>
+      <div class="flex gap-1 overflow-x-auto pb-1">
+        {% for p in platform_tab_order %}
+        <button
+          type="button"
+          data-tab="{{ p }}"
+          data-label="{{ p | capitalize }}"
+          aria-label="{{ p }}"
+          aria-selected="{{ 'true' if p == 'android' else 'false' }}"
+          class="tab-btn-mobile flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border text-lg transition {{ 'border-accent bg-zinc-800/80 text-accent' if p == 'android' else 'border-zinc-800 bg-zinc-950 text-zinc-500' }}"
+        >
+          {% if p == 'android' %}🤖{% elif p == 'apple' %}🍎{% elif p == 'windows' %}🪟{% elif p == 'linux' %}🐧{% else %}🌐{% endif %}
+        </button>
+        {% endfor %}
+      </div>
+    </div>
+
+    <main class="flex-1 overflow-auto px-4 py-6 md:px-8 md:py-10">
+      {% for p in platform_tab_order %}
+      <div id="panel-{{ p }}" class="platform-panel {% if p != 'android' %}hidden{% endif %}">
+        {% if p == 'apple' %}
+        <div class="py-16 text-center">
+          <p class="text-lg font-medium text-zinc-400">Not Supported</p>
+          <p class="mt-2 text-sm text-zinc-600">Apple builds are not available on this host.</p>
+        </div>
+        {% else %}
+        {% with timeline_tree=timeline_trees[p], platform=p %}
+        {% include "components/timeline.html" %}
+        {% endwith %}
+        {% endif %}
+      </div>
+      {% endfor %}
+    </main>
+  </div>
+</div>
+
+<script type="application/json" id="latest-platform-data">{{ latest_platform_data | tojson }}</script>
+
+{% include "components/upload_modal.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    const panels = {};
+    document.querySelectorAll(".platform-panel").forEach((el) => {
+      const id = el.id.replace("panel-", "");
+      panels[id] = el;
+    });
+    const tabBtns = document.querySelectorAll(".tab-btn");
+    const tabBtnsMobile = document.querySelectorAll(".tab-btn-mobile");
+    const latestRaw = document.getElementById("latest-platform-data");
+    const latestByPlatform = latestRaw ? JSON.parse(latestRaw.textContent) : {};
+
+    function updateHeader(platform) {
+      const info = latestByPlatform[platform];
+      const appEl = document.getElementById("header-app-version");
+      const srvEl = document.getElementById("header-server-version");
+      const appSb = document.getElementById("sidebar-app-version");
+      const srvSb = document.getElementById("sidebar-server-version");
+      const v = info && info.version ? info.version : "—";
+      const s = info && info.server_version ? info.server_version : "—";
+      if (appEl) appEl.textContent = v;
+      if (srvEl) srvEl.textContent = s;
+      if (appSb) appSb.textContent = v;
+      if (srvSb) srvSb.textContent = s;
+    }
+
+    function setPlatform(p) {
+      Object.keys(panels).forEach((k) => {
+        panels[k].classList.toggle("hidden", k !== p);
+      });
+      tabBtns.forEach((btn) => {
+        const on = btn.getAttribute("data-tab") === p;
+        btn.setAttribute("aria-selected", on ? "true" : "false");
+        btn.classList.toggle("border-accent/60", on);
+        btn.classList.toggle("bg-zinc-800/80", on);
+        btn.classList.toggle("text-accent", on);
+        btn.classList.toggle("border-transparent", !on);
+        btn.classList.toggle("text-zinc-400", !on);
+      });
+      tabBtnsMobile.forEach((btn) => {
+        const on = btn.getAttribute("data-tab") === p;
+        btn.setAttribute("aria-selected", on ? "true" : "false");
+        btn.classList.toggle("border-accent", on);
+        btn.classList.toggle("bg-zinc-800/80", on);
+        btn.classList.toggle("text-accent", on);
+        btn.classList.toggle("border-zinc-800", !on);
+        btn.classList.toggle("bg-zinc-950", !on);
+        btn.classList.toggle("text-zinc-500", !on);
+      });
+      updateHeader(p);
+    }
+
+    tabBtns.forEach((btn) => {
+      btn.addEventListener("click", () => setPlatform(btn.getAttribute("data-tab")));
+    });
+    tabBtnsMobile.forEach((btn) => {
+      btn.addEventListener("click", () => setPlatform(btn.getAttribute("data-tab")));
+    });
+
+    document.querySelectorAll(".copy-link-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const url = btn.getAttribute("data-url");
+        try {
+          await navigator.clipboard.writeText(url);
+          const prev = btn.textContent;
+          btn.textContent = "Copied";
+          setTimeout(() => (btn.textContent = prev), 1500);
+        } catch {
+          btn.textContent = "Failed";
+          setTimeout(() => (btn.textContent = "Copy link"), 1500);
+        }
+      });
+    });
+
+    const sidebar = document.getElementById("sidebar");
+    const sidebarToggle = document.getElementById("sidebar-toggle");
+    const iconExpand = sidebarToggle && sidebarToggle.querySelector(".icon-expand");
+    const iconCollapse = sidebarToggle && sidebarToggle.querySelector(".icon-collapse");
+
+    function applySidebar(collapsed) {
+      if (!sidebar) return;
+      sidebar.dataset.collapsed = collapsed ? "true" : "false";
+      sidebar.classList.toggle("md:w-16", collapsed);
+      sidebar.classList.toggle("md:w-64", !collapsed);
+      if (sidebarToggle) {
+        sidebarToggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+        sidebarToggle.setAttribute("aria-label", collapsed ? "Expand sidebar" : "Collapse sidebar");
+      }
+      if (iconExpand) iconExpand.classList.toggle("hidden", !collapsed);
+      if (iconCollapse) iconCollapse.classList.toggle("hidden", collapsed);
+      document
+        .querySelectorAll(".sidebar-brand, .sidebar-tabs, .sidebar-tab-heading, .sidebar-upload-label")
+        .forEach((el) => {
+          el.classList.toggle("hidden", collapsed);
+        });
+      const uploadIcon = document.getElementById("open-upload-modal-icon");
+      if (uploadIcon) {
+        uploadIcon.classList.toggle("hidden", !collapsed);
+        uploadIcon.classList.toggle("flex", collapsed);
+      }
+      document.querySelectorAll(".sidebar-tab-label").forEach((el) => {
+        el.classList.toggle("sr-only", collapsed);
+      });
+      try {
+        localStorage.setItem("sidebarCollapsed", collapsed ? "1" : "0");
+      } catch (_) {}
+    }
+
+    if (sidebar && sidebarToggle) {
+      let collapsed = false;
+      try {
+        collapsed = localStorage.getItem("sidebarCollapsed") === "1";
+      } catch (_) {}
+      applySidebar(collapsed);
+      sidebarToggle.addEventListener("click", () => applySidebar(sidebar.dataset.collapsed !== "true"));
+    }
+
+    const modal = document.getElementById("upload-modal");
+    const openBtn = document.getElementById("open-upload-modal");
+    const closeBtn = document.getElementById("close-upload-modal");
+    const cancelBtn = document.getElementById("cancel-upload-modal");
+    const fileInput = document.getElementById("upload-file");
+    const dropzone = document.getElementById("upload-dropzone");
+    const browseBtn = document.getElementById("upload-browse");
+    const form = document.getElementById("upload-form");
+    const msg = document.getElementById("upload-message");
+
+    function openModal() {
+      if (!modal || window.matchMedia("(max-width: 767px)").matches) return;
+      modal.classList.remove("hidden");
+      modal.classList.add("flex");
+      modal.setAttribute("aria-hidden", "false");
+    }
+    function closeModal() {
+      if (!modal) return;
+      modal.classList.add("hidden");
+      modal.classList.remove("flex");
+      modal.setAttribute("aria-hidden", "true");
+      msg.classList.add("hidden");
+    }
+
+    const uploadIconOpen = document.getElementById("open-upload-modal-icon");
+    openBtn && openBtn.addEventListener("click", openModal);
+    uploadIconOpen && uploadIconOpen.addEventListener("click", openModal);
+    closeBtn && closeBtn.addEventListener("click", closeModal);
+    cancelBtn && cancelBtn.addEventListener("click", closeModal);
+    modal &&
+      modal.addEventListener("click", (e) => {
+        if (e.target === modal) closeModal();
+      });
+
+    browseBtn &&
+      browseBtn.addEventListener("click", () => {
+        fileInput && fileInput.click();
+      });
+
+    if (dropzone && fileInput) {
+      ["dragenter", "dragover"].forEach((ev) => {
+        dropzone.addEventListener(ev, (e) => {
+          e.preventDefault();
+          dropzone.classList.add("border-accent", "bg-accent/5");
+        });
+      });
+      ["dragleave", "drop"].forEach((ev) => {
+        dropzone.addEventListener(ev, (e) => {
+          e.preventDefault();
+          dropzone.classList.remove("border-accent", "bg-accent/5");
+        });
+      });
+      dropzone.addEventListener("drop", (e) => {
+        if (e.dataTransfer.files.length) fileInput.files = e.dataTransfer.files;
+      });
+    }
+
+    form &&
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        msg.classList.add("hidden");
+        const fd = new FormData(form);
+        const submit = document.getElementById("upload-submit");
+        submit.disabled = true;
+        try {
+          const res = await fetch("/upload", { method: "POST", body: fd });
+          const text = await res.text();
+          let detail = text;
+          try {
+            const j = JSON.parse(text);
+            if (j.detail != null) {
+              detail = Array.isArray(j.detail)
+                ? j.detail.map((d) => (typeof d === "string" ? d : d.msg || JSON.stringify(d))).join(", ")
+                : String(j.detail);
+            }
+          } catch (_) {}
+          if (res.ok) {
+            window.location.reload();
+            return;
+          }
+          msg.textContent = res.status + ": " + detail;
+          msg.classList.remove("hidden", "text-accent");
+          msg.classList.add("text-red-400");
+        } catch (err) {
+          msg.textContent = "Network error";
+          msg.classList.remove("hidden", "text-accent");
+          msg.classList.add("text-red-400");
+        } finally {
+          submit.disabled = false;
+        }
+      });
+
+    const uploadPlatform = document.getElementById("upload-platform");
+    const uploadArtifact = document.getElementById("upload-artifact-kind");
+    const rowFile = document.getElementById("upload-row-file");
+    const rowWeb = document.getElementById("upload-row-web");
+    const ARTIFACTS = {
+      android: [{ v: "apk", t: "APK (.apk)" }],
+      linux: [
+        { v: "deb", t: ".deb" },
+        { v: "rpm", t: ".rpm" },
+        { v: "tar_gz", t: ".tar.gz" },
+      ],
+      windows: [
+        { v: "exe", t: ".exe" },
+        { v: "msi", t: ".msi" },
+        { v: "zip", t: ".zip" },
+      ],
+      web: [{ v: "web", t: "Web link" }],
+    };
+
+    function syncUploadFields() {
+      const plat = uploadPlatform && uploadPlatform.value;
+      if (!uploadArtifact || !rowFile || !rowWeb || !fileInput) return;
+      const opts = ARTIFACTS[plat] || ARTIFACTS.android;
+      uploadArtifact.innerHTML = opts.map((o) => `<option value="${o.v}">${o.t}</option>`).join("");
+      if (plat === "web") {
+        rowFile.classList.add("hidden");
+        fileInput.removeAttribute("required");
+        fileInput.value = "";
+        rowWeb.classList.remove("hidden");
+        document.getElementById("upload-web-url").setAttribute("required", "required");
+      } else {
+        rowFile.classList.remove("hidden");
+        fileInput.setAttribute("required", "required");
+        const acc =
+          plat === "linux"
+            ? ".deb,.rpm,.tar.gz,application/gzip,application/x-debian-package,application/x-rpm"
+            : plat === "windows"
+              ? ".exe,.msi,.zip"
+              : ".apk,application/vnd.android.package-archive";
+        fileInput.setAttribute("accept", acc);
+        rowWeb.classList.add("hidden");
+        const wu = document.getElementById("upload-web-url");
+        if (wu) {
+          wu.removeAttribute("required");
+          wu.value = "";
+        }
+      }
+    }
+    uploadPlatform && uploadPlatform.addEventListener("change", syncUploadFields);
+    syncUploadFields();
+  })();
+</script>
+{% endblock %}

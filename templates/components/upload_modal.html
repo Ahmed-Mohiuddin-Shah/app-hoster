@@ -1,0 +1,139 @@
+<div
+  id="upload-modal"
+  class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 p-4"
+  aria-hidden="true"
+  role="dialog"
+  aria-labelledby="upload-modal-title"
+>
+  <div
+    class="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-zinc-800 bg-zinc-950 p-6 shadow-xl shadow-accent/5"
+  >
+    <button
+      type="button"
+      id="close-upload-modal"
+      class="absolute right-4 top-4 rounded-full border border-zinc-700 px-3 py-1 text-xs text-zinc-400 hover:border-zinc-500 hover:text-white"
+      aria-label="Close"
+    >
+      ✕
+    </button>
+    <h2 id="upload-modal-title" class="text-lg font-semibold text-white">Upload release</h2>
+    <p class="mt-1 text-xs text-zinc-500">Desktop only. Files are stored on this server.</p>
+
+    <form id="upload-form" class="mt-6 space-y-4">
+      <div>
+        <label class="mb-1 block text-xs font-medium text-zinc-400" for="upload-platform">Platform</label>
+        <select
+          id="upload-platform"
+          name="platform"
+          required
+          class="w-full rounded-full border border-zinc-700 bg-black px-4 py-2.5 text-sm text-white focus:border-accent focus:outline-none"
+        >
+          <option value="android">Android</option>
+          <option value="linux">Linux</option>
+          <option value="windows">Windows</option>
+          <option value="web">Web (link only)</option>
+        </select>
+      </div>
+      <div>
+        <label class="mb-1 block text-xs font-medium text-zinc-400" for="upload-build-type">Build type</label>
+        <select
+          id="upload-build-type"
+          name="build_type"
+          required
+          class="w-full rounded-full border border-zinc-700 bg-black px-4 py-2.5 text-sm text-white focus:border-accent focus:outline-none"
+        >
+          <option value="release">release</option>
+          <option value="profile">profile</option>
+          <option value="debug">debug</option>
+        </select>
+      </div>
+      <div>
+        <label class="mb-1 block text-xs font-medium text-zinc-400" for="upload-artifact-kind">Package / artifact</label>
+        <select
+          id="upload-artifact-kind"
+          name="artifact_kind"
+          required
+          class="w-full rounded-full border border-zinc-700 bg-black px-4 py-2.5 text-sm text-white focus:border-accent focus:outline-none"
+        ></select>
+      </div>
+      <div id="upload-row-file">
+        <label class="mb-1 block text-xs font-medium text-zinc-400" for="upload-file">File</label>
+        <div
+          id="upload-dropzone"
+          class="rounded-full border border-dashed border-zinc-700 bg-black/40 px-4 py-8 text-center text-sm text-zinc-500 transition hover:border-accent/50"
+        >
+          <input id="upload-file" name="file" type="file" class="hidden" />
+          <p>Drag and drop here, or <button type="button" id="upload-browse" class="text-accent underline">browse</button></p>
+        </div>
+      </div>
+      <div id="upload-row-web" class="hidden">
+        <label class="mb-1 block text-xs font-medium text-zinc-400" for="upload-web-url">Web URL</label>
+        <input
+          id="upload-web-url"
+          name="web_url"
+          type="url"
+          placeholder="https://"
+          class="w-full rounded-full border border-zinc-700 bg-black px-4 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:border-accent focus:outline-none"
+        />
+      </div>
+      <div>
+        <label class="mb-1 block text-xs font-medium text-zinc-400" for="upload-version">Version</label>
+        <input
+          id="upload-version"
+          name="version"
+          type="text"
+          required
+          placeholder="1.2.0"
+          class="w-full rounded-full border border-zinc-700 bg-black px-4 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:border-accent focus:outline-none"
+        />
+      </div>
+      <div>
+        <label class="mb-1 block text-xs font-medium text-zinc-400" for="upload-server-version">Server version</label>
+        <input
+          id="upload-server-version"
+          name="server_version"
+          type="text"
+          required
+          class="w-full rounded-full border border-zinc-700 bg-black px-4 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:border-accent focus:outline-none"
+        />
+      </div>
+      <div>
+        <label class="mb-1 block text-xs font-medium text-zinc-400" for="upload-notes">Release notes</label>
+        <textarea
+          id="upload-notes"
+          name="release_notes"
+          rows="3"
+          class="w-full rounded-2xl border border-zinc-700 bg-black px-4 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:border-accent focus:outline-none"
+        ></textarea>
+      </div>
+      <div>
+        <label class="mb-1 block text-xs font-medium text-zinc-400" for="upload-secret">Secret key</label>
+        <input
+          id="upload-secret"
+          name="secret_key"
+          type="password"
+          required
+          autocomplete="off"
+          class="w-full rounded-full border border-zinc-700 bg-black px-4 py-2.5 text-sm text-white focus:border-accent focus:outline-none"
+        />
+      </div>
+      <p id="upload-message" class="hidden text-sm"></p>
+      <div class="flex gap-2 pt-2">
+        <button
+          type="submit"
+          id="upload-submit"
+          class="flex-1 rounded-full border border-accent bg-accent/15 py-2.5 text-sm font-semibold text-accent transition hover:bg-accent/25"
+        >
+          Submit
+        </button>
+        <button
+          type="button"
+          id="cancel-upload-modal"
+          class="rounded-full border border-zinc-700 px-5 py-2.5 text-sm text-zinc-300 hover:border-zinc-500"
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

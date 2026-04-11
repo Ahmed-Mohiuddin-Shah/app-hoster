@@ -1,0 +1,22 @@
+<header class="border-b border-zinc-800 px-4 py-4 md:hidden">
+  {% set la = latest_by_platform['android'] %}
+  <div class="flex items-center gap-3">
+    {% if logo_url %}
+    <img src="{{ logo_url }}" alt="" class="h-11 w-11 shrink-0 rounded-lg object-contain" width="44" height="44" />
+    {% else %}
+    <div
+      class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-accent/60 bg-zinc-950 text-xs font-bold text-accent"
+      aria-hidden="true"
+    >
+      LOGO
+    </div>
+    {% endif %}
+    <div class="min-w-0 flex-1">
+      <h1 class="truncate text-lg font-semibold tracking-tight">{{ project_name }}</h1>
+      <div class="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-zinc-400">
+        <span>App <span id="header-app-version" class="font-mono text-accent">{{ la.version if la else '—' }}</span></span>
+        <span>Server <span id="header-server-version" class="font-mono text-accent">{{ la.server_version if la else '—' }}</span></span>
+      </div>
+    </div>
+  </div>
+</header>

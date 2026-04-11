@@ -1,0 +1,148 @@
+{# Expects: timeline_tree (list), platform (str) #}
+<div class="mx-auto max-w-3xl">
+  {% if timeline_tree %}
+  <ul class="relative space-y-0 pl-1">
+    {% for vnode in timeline_tree %}
+    <li class="relative pb-12 pl-8 {% if not loop.last %}border-l border-zinc-700{% endif %}">
+      <span
+        class="timeline-main-dot absolute left-0 top-1 z-20 flex h-4 w-4 -translate-x-1/2 items-center justify-center rounded-full border-2 border-accent bg-black ring-4 ring-black"
+        aria-hidden="true"></span>
+
+      {% if vnode.simple %}
+      {% if vnode.leaf_count == 1 %}
+      {% set r = vnode.all_leaves[0] %}
+      <div class="rounded-lg border border-zinc-800 bg-zinc-950/80 p-4 transition hover:border-accent/40">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p class="font-mono text-lg font-semibold text-accent">{{ r.version }}</p>
+            <p class="mt-0.5 text-xs uppercase tracking-wide text-zinc-500">
+              {{ r.build_type }}{% if r.artifact_kind and r.artifact_kind not in ('apk', 'web') %} · {% if
+              r.artifact_kind == 'tar_gz' %}tar.gz{% else %}{{ r.artifact_kind }}{% endif %}{% endif %}
+            </p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <a href="{{ request.url_for('download', release_id=r.id) }}"
+              class="inline-flex items-center rounded-full border border-accent px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-accent transition hover:bg-accent/10">
+              GET
+            </a>
+            <button type="button"
+              class="copy-link-btn rounded-full border border-zinc-600 px-3 py-1.5 text-xs text-zinc-300 transition hover:border-accent hover:text-accent"
+              data-url="{{ request.url_for('download', release_id=r.id) }}">
+              Copy link
+            </button>
+          </div>
+        </div>
+        <p class="mt-1 text-xs text-zinc-600">Server <span class="font-mono text-zinc-400">{{ r.server_version }}</span>
+        </p>
+        {% if r.release_notes %}
+        <p class="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-zinc-300">{{ r.release_notes }}</p>
+        {% else %}
+        <p class="mt-3 text-sm italic text-zinc-600">No release notes.</p>
+        {% endif %}
+      </div>
+      {% else %}
+      <div class="rounded-lg border border-dashed border-zinc-800 py-8 text-center text-sm text-zinc-600">
+        {{ vnode.version }} — no builds
+      </div>
+      {% endif %}
+      {% else %}
+      {% set gh = vnode.graph_height %}
+      {% set gw = vnode.graph_width | int %}
+
+      <div class="mb-2 pl-1 font-mono text-lg font-semibold tracking-tight text-accent">{{ vnode.version }}</div>
+
+      <div class="relative -mt-6 -ml-10 flex min-w-0 gap-2">
+        <svg width="{{ gw }}" height="{{ gh }}" viewBox="0 0 {{ gw }} {{ gh }}"
+          class="pointer-events-none shrink-0 overflow-visible" aria-hidden="true">
+          {% for p in vnode.graph_paths %}
+          <path d="{{ p.d }}" fill="none" stroke="{{ p.stroke }}" stroke-width="{{ p.sw }}" stroke-linecap="round"
+            stroke-linejoin="round" />
+          {% endfor %}
+          {% for n in vnode.graph_nodes %}
+          <circle cx="{{ n.cx }}" cy="{{ n.cy }}" r="{{ n.r | default(5) }}" fill="{{ n.fill }}"
+            stroke="#09090b" stroke-width="2" />
+          {% endfor %}
+        </svg>
+
+        <div class="relative z-10 flex min-w-0 flex-1 flex-col pl-10">
+          {% for row in vnode.display_rows %}
+          {% if row.h == 34 %}
+          {% set row_h_cls = "min-h-[34px]" %}
+          {% elif row.h == 30 %}
+          {% set row_h_cls = "min-h-[30px]" %}
+          {% else %}
+          {% set row_h_cls = "min-h-[108px]" %}
+          {% endif %}
+          {% if row.depth == 1 %}
+          {% set row_ml_cls = "ml-0" %}
+          {% elif row.depth == 2 %}
+          {% set row_ml_cls = "ml-3" %}
+          {% else %}
+          {% set row_ml_cls = "ml-6" %}
+          {% endif %}
+          {% if row.color == '#ef4444' %}
+          {% set row_bd_cls = "border-l-red-500" %}
+          {% elif row.color == '#f97316' %}
+          {% set row_bd_cls = "border-l-orange-500" %}
+          {% else %}
+          {% set row_bd_cls = "border-l-green-500" %}
+          {% endif %}
+          {% if row.kind == 'h_build' %}
+          <div
+            class="mb-1 flex items-center border-l-2 pl-2 text-sm font-medium {{ row_h_cls }} {{ row_ml_cls }} {{ row_bd_cls }}">
+            {{ row.text }}
+          </div>
+          {% elif row.kind == 'h_art' %}
+          <div
+            class="mb-1 flex items-center border-l-2 pl-2 text-xs text-zinc-400 {{ row_h_cls }} {{ row_ml_cls }} {{ row_bd_cls }}">
+            {{ row.text }}
+          </div>
+          {% elif row.kind == 'leaf' %}
+          {% set r = row.release %}
+          <div class="mb-2 flex min-h-0 flex-col last:mb-0 {{ row_h_cls }} {{ row_ml_cls }}">
+            <div class="h-full rounded-lg border border-zinc-800 bg-zinc-950/80 p-4 transition hover:border-accent/40">
+              <p class="text-xs font-medium text-zinc-500">{{ r.version }} – {{ r.build_type }} – {{ r.server_version }}
+              </p>
+              <div class="mt-2 flex flex-wrap items-start justify-between gap-3">
+                <div class="text-xs text-zinc-500">
+                  {% if r.artifact_kind and r.artifact_kind not in ('apk', 'web') %}
+                  <span class="font-mono text-zinc-400">{% if r.artifact_kind == 'tar_gz' %}tar.gz{% else %}{{
+                    r.artifact_kind }}{% endif %}</span>
+                  {% elif r.platform == 'web' %}
+                  <span class="text-accent">Web link</span>
+                  {% endif %}
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <a href="{{ request.url_for('download', release_id=r.id) }}"
+                    class="inline-flex items-center rounded-full border border-accent px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-accent transition hover:bg-accent/10">
+                    GET
+                  </a>
+                  <button type="button"
+                    class="copy-link-btn rounded-full border border-zinc-600 px-3 py-1.5 text-xs text-zinc-300 transition hover:border-accent hover:text-accent"
+                    data-url="{{ request.url_for('download', release_id=r.id) }}">
+                    Copy link
+                  </button>
+                </div>
+              </div>
+              {% if r.release_notes %}
+              <p class="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-zinc-300">{{ r.release_notes }}</p>
+              {% else %}
+              <p class="mt-3 text-sm italic text-zinc-600">No release notes.</p>
+              {% endif %}
+            </div>
+          </div>
+          {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <div class="rounded-lg border border-dashed border-zinc-700 py-16 text-center text-zinc-500">
+    <p class="text-sm">No releases for this platform yet.</p>
+    <p class="mt-1 text-xs">Upload from the desktop sidebar.</p>
+  </div>
+  {% endif %}
+</div>
