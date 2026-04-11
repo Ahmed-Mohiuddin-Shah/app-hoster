@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
   <link rel="icon" href="/svgs/favicon.svg" type="image/svg+xml" />
   <title>{% block title %}{{ project_name }}{% endblock %}</title>
   <script src="https://cdn.tailwindcss.com"></script>
@@ -17,6 +18,33 @@
       },
     };
   </script>
+  <style>
+    /* Firefox — apply to scroll containers (not only the root) */
+    * {
+      scrollbar-color: #3f3f46 #09090b;
+      scrollbar-width: thin;
+    }
+    /* Chromium / Safari */
+    *::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+    *::-webkit-scrollbar-track {
+      background: #09090b;
+      border-radius: 9999px;
+    }
+    *::-webkit-scrollbar-thumb {
+      background: #3f3f46;
+      border-radius: 9999px;
+      border: 2px solid #09090b;
+    }
+    *::-webkit-scrollbar-thumb:hover {
+      background: #52525b;
+    }
+    *::-webkit-scrollbar-corner {
+      background: #09090b;
+    }
+  </style>
 </head>
 <body class="h-full min-h-screen bg-black text-white antialiased">
   {% block content %}{% endblock %}

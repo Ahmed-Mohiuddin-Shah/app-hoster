@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="flex min-h-screen flex-col md:flex-row">
+<div class="flex min-h-screen flex-col md:h-screen md:max-h-screen md:flex-row md:overflow-hidden">
   {% include "components/sidebar.html" %}
 
-  <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+  <div class="flex min-h-0 min-w-0 flex-1 flex-col md:overflow-hidden">
     {% include "components/header.html" %}
 
     <div class="platform-tabs-mobile border-b border-zinc-800 px-2 py-2 md:hidden">
