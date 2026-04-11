@@ -5,6 +5,8 @@ entrypoint = "main:app"
 name = "app-hoster"
 version = "0.1.0"
 description = "Minimal APK hosting platform (FastAPI + Jinja2 + Tailwind)"
+license = "CC-BY-4.0"
+license-files = ["LICENSE", "NOTICES"]
 requires-python = ">=3.11"
 dependencies = [
     "uvicorn[standard]>=0.32.0",
