@@ -11,6 +11,7 @@ from urllib.parse import urlencode, urlparse
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -37,8 +38,12 @@ load_dotenv()
 
 UPLOAD_SECRET = os.environ.get("UPLOAD_SECRET", "")
 PROJECT_NAME = os.environ.get("PROJECT_NAME", "App Host")
-LOGO_SVG_PATH = os.environ.get("LOGO_SVG_PATH", "").strip()
+# Basename only: file must live in ./svgs/ (served at /svgs/<name>).
+LOGO_SVG = (os.environ.get("LOGO_SVG") or "logo.svg").strip() or "logo.svg"
 MAX_UPLOAD_BYTES = 200 * 1024 * 1024  # 200 MB
+
+SVGS_DIR = Path(__file__).resolve().parent / "svgs"
+SVGS_DIR.mkdir(parents=True, exist_ok=True)
 
 PLATFORM_TAB_ORDER = ("android", "apple", "windows", "linux", "web")
 
@@ -56,23 +61,24 @@ def get_db():
         db.close()
 
 
-def _resolve_logo_file() -> Path | None:
-    if not LOGO_SVG_PATH:
+def _svgs_logo_basename() -> str | None:
+    """Return a safe .svg basename for LOGO_SVG, or None if invalid."""
+    name = os.path.basename(LOGO_SVG.strip())
+    if not name or name != LOGO_SVG.strip():
         return None
-    raw = Path(LOGO_SVG_PATH).expanduser()
-    if not raw.is_absolute():
-        raw = (Path(__file__).resolve().parent / raw).resolve()
-    try:
-        resolved = raw.resolve()
-    except OSError:
+    if not re.fullmatch(r"[A-Za-z0-9._-]+\.svg", name, flags=re.IGNORECASE):
         return None
-    if not resolved.is_file() or resolved.suffix.lower() != ".svg":
-        return None
-    return resolved
+    return name
 
 
 def get_logo_url() -> str | None:
-    return "/logo.svg" if _resolve_logo_file() else None
+    base = _svgs_logo_basename()
+    if base is None:
+        return None
+    path = SVGS_DIR / base
+    if path.is_file():
+        return f"/svgs/{base}"
+    return None
 
 
 @asynccontextmanager
@@ -84,6 +90,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="APK Host", lifespan=lifespan)
 templates = Jinja2Templates(directory="templates")
+app.mount("/svgs", StaticFiles(directory=str(SVGS_DIR)), name="svgs")
 
 
 def list_sorted_releases(db: Session, platform: str | None = None) -> list[Release]:
@@ -181,11 +188,12 @@ def duplicate_release(
 
 
 @app.get("/logo.svg")
-def logo_svg():
-    path = _resolve_logo_file()
-    if path is None:
+def logo_svg_legacy():
+    """Old URL; logo is served from /svgs/ like other SVG assets."""
+    u = get_logo_url()
+    if u is None:
         raise HTTPException(status_code=404)
-    return FileResponse(path, media_type="image/svg+xml", filename="logo.svg")
+    return RedirectResponse(url=u, status_code=302)
 
 
 @app.get("/", response_class=HTMLResponse)
