@@ -1,7 +1,33 @@
 <aside id="sidebar"
   class="relative z-20 hidden shrink-0 flex-col border-r border-zinc-800 bg-zinc-950 transition-[width] duration-200 md:flex md:h-screen md:max-h-screen md:w-64 md:min-h-0 md:overflow-hidden"
   data-collapsed="false">
-  <div class="flex items-center justify-between gap-2 border-b border-zinc-800 p-3">
+  {% set la0 = latest_by_platform[initial_tab] %}
+  {# Shown only when sidebar is collapsed (md+); order: expand, logo, versions #}
+  <div id="sidebar-compact-header"
+    class="hidden shrink-0 flex-col items-center gap-3 border-b border-zinc-800 px-2 py-3">
+    <button type="button" id="sidebar-compact-expand"
+      class="shrink-0 rounded-full border border-zinc-700 px-2 py-1 text-xs text-zinc-300 transition hover:border-accent hover:text-accent"
+      aria-label="Expand sidebar">
+      <span aria-hidden="true">»</span>
+    </button>
+    {% if logo_url %}
+    <img src="{{ logo_url }}" alt="" class="h-9 w-9 shrink-0 rounded-lg object-contain" width="36" height="36" />
+    {% else %}
+    <div
+      class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-accent/60 bg-zinc-950 text-[10px] font-bold text-accent"
+      aria-hidden="true">
+      LOGO
+    </div>
+    {% endif %}
+    <div class="flex flex-col items-center gap-1 text-center text-xs text-zinc-500">
+      <span>App <span id="sidebar-compact-app-version" class="font-mono text-accent">{{ la0.version if la0 else '—'
+          }}</span></span>
+      <span>Server <span id="sidebar-compact-server-version" class="font-mono text-accent">{{ la0.server_version if la0
+          else '—' }}</span></span>
+    </div>
+  </div>
+
+  <div class="sidebar-top-expanded flex shrink-0 items-center justify-between gap-2 border-b border-zinc-800 p-3">
     <div class="sidebar-brand flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
       {% if logo_url %}
       <img src="{{ logo_url }}" alt="" class="h-9 w-9 shrink-0 rounded-lg object-contain" width="36" height="36" />
@@ -14,7 +40,6 @@
       {% endif %}
       <div class="min-w-0 flex-1">
         <p class="truncate text-sm font-semibold tracking-tight">{{ project_name }}</p>
-        {% set la0 = latest_by_platform[initial_tab] %}
         <p class="mt-1 truncate text-xs text-zinc-500">
           App <span id="sidebar-app-version" class="font-mono text-accent">{{ la0.version if la0 else '—' }}</span>
         </p>
@@ -27,8 +52,10 @@
     <button type="button" id="sidebar-toggle"
       class="shrink-0 rounded-full border border-zinc-700 px-2 py-1 text-xs text-zinc-300 transition hover:border-accent hover:text-accent"
       aria-expanded="true" aria-label="Collapse sidebar">
-      <span class="icon-expand hidden">»</span>
-      <span class="icon-collapse">«</span>
+      <span class="icon-expand hidden"><img src="/svgs/angles-right.svg" alt=""
+          class="h-5 w-5 object-contain brightness-0 invert opacity-90" width="20" height="20" /></span>
+      <span class="icon-collapse"><img src="/svgs/angles-left.svg" alt=""
+          class="h-5 w-5 object-contain brightness-0 invert opacity-90" width="20" height="20" /></span>
     </button>
   </div>
 
@@ -50,6 +77,10 @@
   </div>
 
   <div class="mt-auto flex shrink-0 flex-col gap-2 border-t border-zinc-800 p-2">
+    <button type="button" id="open-server-links-modal"
+      class="sidebar-server-links-btn sidebar-upload-label hidden w-full items-center justify-center rounded-full border border-zinc-600 bg-zinc-900/80 px-3 py-2 text-sm font-medium text-zinc-200 transition hover:border-accent/60 hover:text-accent md:flex">
+      Upload servers
+    </button>
     <button type="button" id="open-server-links-modal-icon"
       class="sidebar-server-links-icon mx-auto hidden h-11 w-11 shrink-0 items-center justify-center rounded-full border border-zinc-600 bg-zinc-900/80 transition hover:border-accent/60"
       aria-label="Upload servers" title="Upload servers">
@@ -63,7 +94,8 @@
     <button type="button" id="open-upload-modal-icon"
       class="sidebar-upload-icon mx-auto hidden h-11 w-11 shrink-0 items-center justify-center rounded-full border border-accent bg-accent/10 text-lg leading-none text-accent transition hover:bg-accent/20"
       aria-label="Upload" title="Upload">
-      ⬆
+      <img src="/svgs/upload.svg" alt="" class="h-5 w-5 object-contain brightness-0 invert opacity-90" width="20"
+        height="20" />
     </button>
   </div>
 </aside>

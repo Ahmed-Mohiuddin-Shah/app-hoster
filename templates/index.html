@@ -16,7 +16,7 @@
           data-label="{{ platform_tab_labels[p] }}"
           aria-label="{{ platform_tab_labels[p] }}"
           aria-selected="{{ 'true' if p == initial_tab else 'false' }}"
-          class="tab-btn-mobile flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border text-lg transition {{ 'border-accent bg-zinc-800/80 text-accent' if p == initial_tab else 'border-zinc-800 bg-zinc-950 text-zinc-500' }}"
+          class="tab-btn-mobile flex h-11 w-11 shrink-0 items-center justify-center rounded-full border text-lg transition {{ 'border-accent bg-zinc-800/80 text-accent' if p == initial_tab else 'border-zinc-800 bg-zinc-950 text-zinc-500' }}"
         >
           <img src="{{ platform_tab_icons[p] }}" alt=""
             class="h-6 w-6 object-contain opacity-90{% if platform_tab_icon_invert[p] %} brightness-0 invert{% endif %}"
@@ -72,12 +72,16 @@
       const srvEl = document.getElementById("header-server-version");
       const appSb = document.getElementById("sidebar-app-version");
       const srvSb = document.getElementById("sidebar-server-version");
+      const appCompact = document.getElementById("sidebar-compact-app-version");
+      const srvCompact = document.getElementById("sidebar-compact-server-version");
       const v = info && info.version ? info.version : "—";
       const s = info && info.server_version ? info.server_version : "—";
       if (appEl) appEl.textContent = v;
       if (srvEl) srvEl.textContent = s;
       if (appSb) appSb.textContent = v;
       if (srvSb) srvSb.textContent = s;
+      if (appCompact) appCompact.textContent = v;
+      if (srvCompact) srvCompact.textContent = s;
     }
 
     function setPlatform(p) {
@@ -155,11 +159,17 @@
       }
       if (iconExpand) iconExpand.classList.toggle("hidden", !collapsed);
       if (iconCollapse) iconCollapse.classList.toggle("hidden", collapsed);
+      document.querySelectorAll(".sidebar-top-expanded").forEach((el) => {
+        el.classList.toggle("hidden", collapsed);
+      });
       document
-        .querySelectorAll(".sidebar-brand, .sidebar-tab-heading, .sidebar-upload-label, .sidebar-server-links-btn")
+        .querySelectorAll(".sidebar-tab-heading, .sidebar-upload-label")
         .forEach((el) => {
           el.classList.toggle("hidden", collapsed);
         });
+      document.querySelectorAll(".sidebar-server-links-btn").forEach((el) => {
+        el.classList.toggle("md:flex", !collapsed);
+      });
       const uploadIcon = document.getElementById("open-upload-modal-icon");
       if (uploadIcon) {
         uploadIcon.classList.toggle("hidden", !collapsed);
@@ -173,10 +183,27 @@
       document.querySelectorAll(".sidebar-tab-label").forEach((el) => {
         el.classList.toggle("sr-only", collapsed);
       });
+      const compactStrip = document.getElementById("sidebar-compact-header");
+      if (compactStrip) {
+        const md = window.matchMedia("(min-width: 768px)").matches;
+        if (!md || !collapsed) {
+          compactStrip.classList.add("hidden");
+          compactStrip.classList.remove("flex");
+        } else {
+          compactStrip.classList.remove("hidden");
+          compactStrip.classList.add("flex");
+        }
+      }
       try {
         localStorage.setItem("sidebarCollapsed", collapsed ? "1" : "0");
       } catch (_) {}
     }
+
+    const sidebarCompactExpand = document.getElementById("sidebar-compact-expand");
+    sidebarCompactExpand &&
+      sidebarCompactExpand.addEventListener("click", () => {
+        if (sidebarToggle) sidebarToggle.click();
+      });
 
     if (sidebar && sidebarToggle) {
       let collapsed = false;
@@ -186,6 +213,10 @@
       applySidebar(collapsed);
       sidebarToggle.addEventListener("click", () => applySidebar(sidebar.dataset.collapsed !== "true"));
     }
+    window.addEventListener("resize", () => {
+      if (!sidebar) return;
+      applySidebar(sidebar.dataset.collapsed === "true");
+    });
 
     const modal = document.getElementById("upload-modal");
     const openBtn = document.getElementById("open-upload-modal");
