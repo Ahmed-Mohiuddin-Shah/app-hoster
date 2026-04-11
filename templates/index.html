@@ -47,8 +47,10 @@
 
 <script type="application/json" id="latest-platform-data">{{ latest_platform_data | tojson }}</script>
 <script type="application/json" id="initial-tab">{{ initial_tab | tojson }}</script>
+<script type="application/json" id="releases-compat-data">{{ releases_compat_data | tojson }}</script>
 
 {% include "components/upload_modal.html" %}
+{% include "components/server_links_modal.html" %}
 {% endblock %}
 
 {% block scripts %}
@@ -154,7 +156,7 @@
       if (iconExpand) iconExpand.classList.toggle("hidden", !collapsed);
       if (iconCollapse) iconCollapse.classList.toggle("hidden", collapsed);
       document
-        .querySelectorAll(".sidebar-brand, .sidebar-tabs, .sidebar-tab-heading, .sidebar-upload-label")
+        .querySelectorAll(".sidebar-brand, .sidebar-tab-heading, .sidebar-upload-label, .sidebar-server-links-btn")
         .forEach((el) => {
           el.classList.toggle("hidden", collapsed);
         });
@@ -162,6 +164,11 @@
       if (uploadIcon) {
         uploadIcon.classList.toggle("hidden", !collapsed);
         uploadIcon.classList.toggle("flex", collapsed);
+      }
+      const serverLinksIcon = document.getElementById("open-server-links-modal-icon");
+      if (serverLinksIcon) {
+        serverLinksIcon.classList.toggle("hidden", !collapsed);
+        serverLinksIcon.classList.toggle("flex", collapsed);
       }
       document.querySelectorAll(".sidebar-tab-label").forEach((el) => {
         el.classList.toggle("sr-only", collapsed);
@@ -322,6 +329,242 @@
     }
     uploadPlatform && uploadPlatform.addEventListener("change", syncUploadFields);
     syncUploadFields();
+
+    const LS_SERVER_LINKS = "uploadServerLinks";
+    function loadServerLinks() {
+      try {
+        const raw = localStorage.getItem(LS_SERVER_LINKS);
+        const o = raw ? JSON.parse(raw) : {};
+        return {
+          prod: typeof o.prod === "string" ? o.prod : "",
+          profile: typeof o.profile === "string" ? o.profile : "",
+          debug: typeof o.debug === "string" ? o.debug : "",
+        };
+      } catch {
+        return { prod: "", profile: "", debug: "" };
+      }
+    }
+    function saveServerLinks(obj) {
+      localStorage.setItem(LS_SERVER_LINKS, JSON.stringify(obj));
+    }
+    function toApiVersionUrl(base) {
+      if (!base || !String(base).trim()) return null;
+      return String(base).trim().replace(/\/+$/, "") + "/api-version";
+    }
+    function profileBaseUrl(links) {
+      const p = (links.profile || "").trim();
+      if (p) return p;
+      return (links.debug || "").trim();
+    }
+    async function fetchApiVersionAt(fullUrl) {
+      if (!fullUrl) return null;
+      try {
+        const res = await fetch(fullUrl, { credentials: "omit", mode: "cors" });
+        if (!res.ok) return null;
+        const j = await res.json();
+        return j && j.version != null ? String(j.version).trim() : null;
+      } catch {
+        return null;
+      }
+    }
+    async function refreshUploadServerApiVersions() {
+      const links = loadServerLinks();
+      const prodU = toApiVersionUrl(links.prod);
+      const profU = toApiVersionUrl(profileBaseUrl(links));
+      const dbgU = toApiVersionUrl(links.debug);
+      const cache = new Map();
+      async function one(u) {
+        if (!u) return null;
+        if (cache.has(u)) return cache.get(u);
+        const v = await fetchApiVersionAt(u);
+        cache.set(u, v);
+        return v;
+      }
+      const releaseV = await one(prodU);
+      const profileV = await one(profU);
+      const debugV = await one(dbgU);
+      window.__uploadServerApiVersions = { release: releaseV, profile: profileV, debug: debugV };
+      return window.__uploadServerApiVersions;
+    }
+    function apiVersionForBuildType(bt) {
+      const v = window.__uploadServerApiVersions || {};
+      if (bt === "release") return v.release;
+      if (bt === "profile") return v.profile;
+      if (bt === "debug") return v.debug;
+      return null;
+    }
+    function versionsMatch(serverVer, apiV) {
+      if (apiV == null || apiV === "") return null;
+      return String(serverVer).trim().toLowerCase() === String(apiV).trim().toLowerCase();
+    }
+    function applyReleaseCompatibilityUi() {
+      const raw = document.getElementById("releases-compat-data");
+      if (!raw) return;
+      let list = [];
+      try {
+        list = JSON.parse(raw.textContent);
+      } catch {
+        return;
+      }
+      list.forEach((row) => {
+        const apiV = apiVersionForBuildType(row.build_type);
+        const match = versionsMatch(row.server_version, apiV);
+        const card = document.querySelector(".release-leaf-card[data-release-id=\"" + String(row.id) + "\"]");
+        if (!card) return;
+        const clsRing = ["ring-2", "ring-red-500", "ring-offset-2", "ring-offset-black"];
+        if (match === false) {
+          card.dataset.incompatible = "1";
+          clsRing.forEach((c) => card.classList.add(c));
+          card.classList.remove("border-zinc-800");
+          card.classList.add("border-red-600");
+        } else {
+          delete card.dataset.incompatible;
+          clsRing.forEach((c) => card.classList.remove(c));
+          card.classList.add("border-zinc-800");
+          card.classList.remove("border-red-600");
+        }
+      });
+    }
+    document.addEventListener("click", (e) => {
+      const a = e.target.closest("a.release-get-link");
+      if (!a) return;
+      const card = a.closest(".release-leaf-card");
+      if (card && card.dataset.incompatible === "1") {
+        e.preventDefault();
+        const ok = window.confirm(
+          "Warning: this app version may be incompatible with the current running upload server for this build type (release server version does not match that host’s API version). Continue to download anyway?"
+        );
+        if (ok) window.location.href = a.getAttribute("href");
+      }
+    });
+
+    const slModal = document.getElementById("server-links-modal");
+    const openSl = document.getElementById("open-server-links-modal");
+    const closeSl = document.getElementById("close-server-links-modal");
+    const cancelSl = document.getElementById("cancel-server-links-modal");
+    const saveSl = document.getElementById("save-server-links-modal");
+    const inpProd = document.getElementById("server-link-prod");
+    const inpProf = document.getElementById("server-link-profile");
+    const inpDbg = document.getElementById("server-link-debug");
+    const prevProd = document.getElementById("server-link-prev-prod");
+    const prevProf = document.getElementById("server-link-prev-profile");
+    const prevDbg = document.getElementById("server-link-prev-debug");
+    const slMsg = document.getElementById("server-links-message");
+    const inpSecret = document.getElementById("server-links-secret");
+
+    function setPrevLabel(el, text) {
+      if (!el) return;
+      if (text && String(text).trim()) {
+        el.textContent = "Saved: " + String(text).trim();
+        el.classList.remove("hidden");
+      } else {
+        el.textContent = "";
+        el.classList.add("hidden");
+      }
+    }
+    function openServerLinksModal() {
+      if (!slModal || window.matchMedia("(max-width: 767px)").matches) return;
+      const L = loadServerLinks();
+      if (inpProd) inpProd.value = L.prod;
+      if (inpProf) inpProf.value = L.profile;
+      if (inpDbg) inpDbg.value = L.debug;
+      setPrevLabel(prevProd, L.prod);
+      setPrevLabel(prevProf, L.profile);
+      setPrevLabel(prevDbg, L.debug);
+      if (slMsg) {
+        slMsg.classList.add("hidden");
+        slMsg.textContent = "";
+        slMsg.classList.remove("text-red-400", "text-accent");
+      }
+      if (inpSecret) inpSecret.value = "";
+      slModal.classList.remove("hidden");
+      slModal.classList.add("flex");
+      slModal.setAttribute("aria-hidden", "false");
+    }
+    function closeServerLinksModal() {
+      if (!slModal) return;
+      if (inpSecret) inpSecret.value = "";
+      slModal.classList.add("hidden");
+      slModal.classList.remove("flex");
+      slModal.setAttribute("aria-hidden", "true");
+    }
+    openSl && openSl.addEventListener("click", openServerLinksModal);
+    const openSlIcon = document.getElementById("open-server-links-modal-icon");
+    openSlIcon && openSlIcon.addEventListener("click", openServerLinksModal);
+    closeSl && closeSl.addEventListener("click", closeServerLinksModal);
+    cancelSl && cancelSl.addEventListener("click", closeServerLinksModal);
+    slModal &&
+      slModal.addEventListener("click", (e) => {
+        if (e.target === slModal) closeServerLinksModal();
+      });
+    saveSl &&
+      saveSl.addEventListener("click", async () => {
+        if (!inpSecret || !inpSecret.value.trim()) {
+          if (slMsg) {
+            slMsg.textContent = "Enter the secret key to save server links.";
+            slMsg.classList.remove("hidden", "text-accent");
+            slMsg.classList.add("text-red-400");
+          }
+          return;
+        }
+        const fd = new FormData();
+        fd.append("secret_key", inpSecret.value);
+        fd.append("prod", inpProd ? inpProd.value : "");
+        fd.append("profile", inpProf ? inpProf.value : "");
+        fd.append("debug", inpDbg ? inpDbg.value : "");
+        try {
+          const res = await fetch("/upload-server-links", { method: "POST", body: fd });
+          const text = await res.text();
+          let detail = text;
+          try {
+            const j = JSON.parse(text);
+            if (j.detail != null) {
+              detail = Array.isArray(j.detail)
+                ? j.detail.map((d) => (typeof d === "string" ? d : d.msg || JSON.stringify(d))).join(", ")
+                : String(j.detail);
+            }
+          } catch (_) {}
+          if (!res.ok) {
+            if (slMsg) {
+              slMsg.textContent = res.status + ": " + detail;
+              slMsg.classList.remove("hidden", "text-accent");
+              slMsg.classList.add("text-red-400");
+            }
+            return;
+          }
+          let saved;
+          try {
+            saved = JSON.parse(text);
+          } catch {
+            if (slMsg) {
+              slMsg.textContent = "Invalid response from server.";
+              slMsg.classList.remove("hidden");
+              slMsg.classList.add("text-red-400");
+            }
+            return;
+          }
+          saveServerLinks({
+            prod: typeof saved.prod === "string" ? saved.prod : "",
+            profile: typeof saved.profile === "string" ? saved.profile : "",
+            debug: typeof saved.debug === "string" ? saved.debug : "",
+          });
+          inpSecret.value = "";
+          closeServerLinksModal();
+          await refreshUploadServerApiVersions();
+          applyReleaseCompatibilityUi();
+        } catch {
+          if (slMsg) {
+            slMsg.textContent = "Network error";
+            slMsg.classList.remove("hidden");
+            slMsg.classList.add("text-red-400");
+          }
+        }
+      });
+
+    (async () => {
+      await refreshUploadServerApiVersions();
+      applyReleaseCompatibilityUi();
+    })();
   })();
 </script>
 {% endblock %}

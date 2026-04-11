@@ -44,6 +44,17 @@
     *::-webkit-scrollbar-corner {
       background: #09090b;
     }
+    /* Collapsed sidebar: icon-only platform tabs */
+    #sidebar[data-collapsed="true"] .sidebar-tabs {
+      padding-left: 0.35rem;
+      padding-right: 0.35rem;
+    }
+    #sidebar[data-collapsed="true"] .tab-btn {
+      justify-content: center;
+      gap: 0;
+      padding-left: 0.25rem;
+      padding-right: 0.25rem;
+    }
   </style>
 </head>
 <body class="h-full min-h-screen bg-black text-white antialiased">

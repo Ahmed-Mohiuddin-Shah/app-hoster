@@ -36,6 +36,8 @@ from schemas import ReleaseOut
 
 load_dotenv()
 
+API_VERSION = (os.environ.get("API_VERSION") or "0.1.0").strip() or "0.1.0"
+
 UPLOAD_SECRET = os.environ.get("UPLOAD_SECRET", "")
 PROJECT_NAME = os.environ.get("PROJECT_NAME", "App Host")
 # Basename only: file must live in ./svgs/ (served at /svgs/<name>).
@@ -223,6 +225,12 @@ def duplicate_release(
     return db.scalar(q.limit(1)) is not None
 
 
+@app.get("/api-version")
+def api_version():
+    """Plain JSON API version for compatibility checks (same shape as upload servers)."""
+    return JSONResponse({"version": API_VERSION})
+
+
 @app.get("/logo.svg")
 def logo_svg_legacy():
     """Old URL; logo is served from /svgs/ like other SVG assets."""
@@ -251,6 +259,10 @@ def index(request: Request, db: Session = Depends(get_db)):
         timeline_trees[p] = sliced
         timeline_pagers[p] = build_timeline_pager(request, p, meta)
 
+    releases_compat_data = [
+        {"id": r.id, "build_type": r.build_type, "server_version": r.server_version} for r in rows
+    ]
+
     return templates.TemplateResponse(
         request=request,
         name="index.html",
@@ -263,6 +275,7 @@ def index(request: Request, db: Session = Depends(get_db)):
             "initial_tab": initial_tab,
             "project_name": PROJECT_NAME,
             "logo_url": get_logo_url(),
+            "releases_compat_data": releases_compat_data,
             "platforms": sorted(PLATFORMS),
             "platform_tab_order": PLATFORM_TAB_ORDER,
             "platform_tab_labels": PLATFORM_TAB_LABELS,
@@ -296,6 +309,26 @@ def download(release_id: int, db: Session = Depends(get_db)):
         path,
         filename=safe_download_filename(r.version, r.build_type, r.artifact_kind),
         media_type=media_type_for_artifact(r.artifact_kind),
+    )
+
+
+@app.post("/upload-server-links")
+async def upload_server_links(
+    secret_key: str = Form(...),
+    prod: str = Form(""),
+    profile: str = Form(""),
+    debug: str = Form(""),
+):
+    """
+    Validate UPLOAD_SECRET; returns trimmed URLs for the browser to persist (localStorage).
+    Does not store links on the server.
+    """
+    if not UPLOAD_SECRET:
+        raise HTTPException(status_code=503, detail="Upload is not configured (missing UPLOAD_SECRET)")
+    if not secrets.compare_digest(secret_key, UPLOAD_SECRET):
+        raise HTTPException(status_code=403, detail="Invalid secret key")
+    return JSONResponse(
+        {"prod": prod.strip(), "profile": profile.strip(), "debug": debug.strip()}
     )
 
 
