@@ -1,3 +1,6 @@
+[tool.fastapi]
+entrypoint = "main:app"
+
 [project]
 name = "app-hoster"
 version = "0.1.0"
