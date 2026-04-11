@@ -15,8 +15,8 @@
           data-tab="{{ p }}"
           data-label="{{ p | capitalize }}"
           aria-label="{{ p }}"
-          aria-selected="{{ 'true' if p == 'android' else 'false' }}"
-          class="tab-btn-mobile flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border text-lg transition {{ 'border-accent bg-zinc-800/80 text-accent' if p == 'android' else 'border-zinc-800 bg-zinc-950 text-zinc-500' }}"
+          aria-selected="{{ 'true' if p == initial_tab else 'false' }}"
+          class="tab-btn-mobile flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border text-lg transition {{ 'border-accent bg-zinc-800/80 text-accent' if p == initial_tab else 'border-zinc-800 bg-zinc-950 text-zinc-500' }}"
         >
           {% if p == 'android' %}🤖{% elif p == 'apple' %}🍎{% elif p == 'windows' %}🪟{% elif p == 'linux' %}🐧{% else %}🌐{% endif %}
         </button>
@@ -26,14 +26,14 @@
 
     <main class="flex-1 overflow-auto px-4 py-6 md:px-8 md:py-10">
       {% for p in platform_tab_order %}
-      <div id="panel-{{ p }}" class="platform-panel {% if p != 'android' %}hidden{% endif %}">
+      <div id="panel-{{ p }}" class="platform-panel {% if p != initial_tab %}hidden{% endif %}">
         {% if p == 'apple' %}
         <div class="py-16 text-center">
           <p class="text-lg font-medium text-zinc-400">Not Supported</p>
           <p class="mt-2 text-sm text-zinc-600">Apple builds are not available on this host.</p>
         </div>
         {% else %}
-        {% with timeline_tree=timeline_trees[p], platform=p %}
+        {% with timeline_tree=timeline_trees[p], platform=p, pager=timeline_pagers[p] %}
         {% include "components/timeline.html" %}
         {% endwith %}
         {% endif %}
@@ -44,6 +44,7 @@
 </div>
 
 <script type="application/json" id="latest-platform-data">{{ latest_platform_data | tojson }}</script>
+<script type="application/json" id="initial-tab">{{ initial_tab | tojson }}</script>
 
 {% include "components/upload_modal.html" %}
 {% endblock %}
@@ -107,6 +108,17 @@
     tabBtnsMobile.forEach((btn) => {
       btn.addEventListener("click", () => setPlatform(btn.getAttribute("data-tab")));
     });
+
+    const initialTabEl = document.getElementById("initial-tab");
+    let initialTab = "android";
+    if (initialTabEl) {
+      try {
+        initialTab = JSON.parse(initialTabEl.textContent);
+      } catch (_) {}
+    }
+    if (typeof initialTab === "string" && panels[initialTab]) {
+      setPlatform(initialTab);
+    }
 
     document.querySelectorAll(".copy-link-btn").forEach((btn) => {
       btn.addEventListener("click", async () => {

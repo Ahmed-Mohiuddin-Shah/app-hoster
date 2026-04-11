@@ -1,4 +1,4 @@
-{# Expects: timeline_tree (list), platform (str) #}
+{# Expects: timeline_tree (list), platform (str); optional pager (dict|None) for version pagination #}
 <div class="mx-auto max-w-3xl">
   {% if timeline_tree %}
   <ul class="relative space-y-0 pl-1">
@@ -139,6 +139,45 @@
     </li>
     {% endfor %}
   </ul>
+  {% if pager and pager.show %}
+  <nav
+    class="mt-10 flex flex-col items-center gap-3 border-t border-zinc-800/80 pt-8 sm:flex-row sm:flex-wrap sm:justify-center"
+    aria-label="Version list pagination">
+    <p class="order-last text-center text-xs text-zinc-600 sm:order-none sm:w-full">
+      Versions {{ pager.range_start }}–{{ pager.range_end }} of {{ pager.total }}
+    </p>
+    <div class="flex flex-wrap items-center justify-center gap-2">
+      {% if pager.prev_href %}
+      <a href="{{ pager.prev_href }}"
+        class="inline-flex min-h-9 min-w-9 items-center justify-center rounded-full border border-zinc-600 px-3 text-sm text-zinc-200 transition hover:border-accent hover:text-accent">Previous</a>
+      {% else %}
+      <span
+        class="inline-flex min-h-9 cursor-not-allowed items-center justify-center rounded-full border border-zinc-800 px-3 text-sm text-zinc-600">Previous</span>
+      {% endif %}
+      {% if pager.page_hrefs %}
+      {% for ph in pager.page_hrefs %}
+      {% if ph.current %}
+      <span
+        class="inline-flex h-9 min-w-9 items-center justify-center rounded-full bg-accent/15 px-2 text-sm font-medium text-accent"
+        aria-current="page">{{ ph.n }}</span>
+      {% else %}
+      <a href="{{ ph.href }}"
+        class="inline-flex h-9 min-w-9 items-center justify-center rounded-full border border-zinc-600 px-2 text-sm text-zinc-300 transition hover:border-accent hover:text-accent">{{ ph.n }}</a>
+      {% endif %}
+      {% endfor %}
+      {% else %}
+      <span class="px-2 text-sm text-zinc-400">Page {{ pager.page }} / {{ pager.pages }}</span>
+      {% endif %}
+      {% if pager.next_href %}
+      <a href="{{ pager.next_href }}"
+        class="inline-flex min-h-9 min-w-9 items-center justify-center rounded-full border border-zinc-600 px-3 text-sm text-zinc-200 transition hover:border-accent hover:text-accent">Next</a>
+      {% else %}
+      <span
+        class="inline-flex min-h-9 cursor-not-allowed items-center justify-center rounded-full border border-zinc-800 px-3 text-sm text-zinc-600">Next</span>
+      {% endif %}
+    </div>
+  </nav>
+  {% endif %}
   {% else %}
   <div class="rounded-lg border border-dashed border-zinc-700 py-16 text-center text-zinc-500">
     <p class="text-sm">No releases for this platform yet.</p>

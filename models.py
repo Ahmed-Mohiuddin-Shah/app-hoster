@@ -227,6 +227,40 @@ def build_timeline_tree(platform: str, releases: list[Release]) -> list[dict[str
     return tree
 
 
+def paginate_timeline_versions(
+    tree: list[dict[str, Any]],
+    page: int,
+    per_page: int,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """
+    Split a platform timeline (top-level version entries) into pages.
+    Returns (slice for current page, metadata for pager UI).
+    """
+    if per_page < 1:
+        per_page = 10
+    total = len(tree)
+    pages = max(1, (total + per_page - 1) // per_page) if total else 1
+    try:
+        page_i = int(page)
+    except (TypeError, ValueError):
+        page_i = 1
+    page_i = max(1, min(page_i, pages))
+    start = (page_i - 1) * per_page
+    sliced = tree[start : start + per_page]
+    meta: dict[str, Any] = {
+        "page": page_i,
+        "per_page": per_page,
+        "total": total,
+        "pages": pages,
+        "has_prev": page_i > 1 and total > 0,
+        "has_next": page_i < pages,
+        "range_start": start + 1 if total else 0,
+        "range_end": min(start + per_page, total),
+        "show": pages > 1,
+    }
+    return sliced, meta
+
+
 def _bezier_branch(x1: float, y1: float, x2: float, y2: float) -> str:
     """
     Smooth cubic from (x1,y1) to (x2,y2).

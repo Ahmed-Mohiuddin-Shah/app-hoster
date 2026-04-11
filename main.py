@@ -6,7 +6,7 @@ import secrets
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urlencode, urlparse
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
@@ -24,6 +24,7 @@ from models import (
     build_timeline_tree,
     filter_by_platform,
     init_db,
+    paginate_timeline_versions,
     is_valid_semver,
     latest_by_platform,
     media_type_for_artifact,
@@ -40,6 +41,11 @@ LOGO_SVG_PATH = os.environ.get("LOGO_SVG_PATH", "").strip()
 MAX_UPLOAD_BYTES = 200 * 1024 * 1024  # 200 MB
 
 PLATFORM_TAB_ORDER = ("android", "apple", "windows", "linux", "web")
+
+try:
+    TIMELINE_PER_PAGE = max(1, int(os.environ.get("TIMELINE_PER_PAGE", "8")))
+except ValueError:
+    TIMELINE_PER_PAGE = 8
 
 
 def get_db():
@@ -110,6 +116,54 @@ def latest_platform_payload(m: dict[str, Release | None]) -> dict[str, dict | No
     return out
 
 
+def resolve_initial_tab(request: Request) -> str:
+    tab = (request.query_params.get("tab") or "android").lower().strip()
+    if tab not in PLATFORM_TAB_ORDER:
+        return "android"
+    return tab
+
+
+def parse_timeline_page(request: Request, platform: str) -> int:
+    raw = request.query_params.get(f"page_{platform}", "1")
+    try:
+        return max(1, int(raw))
+    except ValueError:
+        return 1
+
+
+def timeline_query_href(request: Request, platform: str, timeline_page: int) -> str:
+    page_key = f"page_{platform}"
+    pairs: list[tuple[str, str]] = []
+    for k, v in request.query_params.multi_items():
+        if k == page_key or k == "tab":
+            continue
+        pairs.append((k, v))
+    pairs.append(("tab", platform))
+    if timeline_page > 1:
+        pairs.append((page_key, str(timeline_page)))
+    q = urlencode(pairs)
+    path = request.url.path
+    return f"{path}?{q}" if q else path
+
+
+def build_timeline_pager(request: Request, platform: str, meta: dict) -> dict | None:
+    if meta["total"] == 0:
+        return None
+    page = meta["page"]
+    pages = meta["pages"]
+    out = dict(meta)
+    out["prev_href"] = timeline_query_href(request, platform, page - 1) if meta["has_prev"] else None
+    out["next_href"] = timeline_query_href(request, platform, page + 1) if meta["has_next"] else None
+    if meta.get("show") and pages <= 12:
+        out["page_hrefs"] = [
+            {"n": n, "href": timeline_query_href(request, platform, n), "current": n == page}
+            for n in range(1, pages + 1)
+        ]
+    else:
+        out["page_hrefs"] = []
+    return out
+
+
 def duplicate_release(
     db: Session,
     platform: str,
@@ -138,7 +192,21 @@ def logo_svg():
 def index(request: Request, db: Session = Depends(get_db)):
     rows = list(db.scalars(select(Release)).all())
     latest_map = latest_by_platform(rows)
-    timeline_trees = {p: build_timeline_tree(p, rows) for p in PLATFORMS}
+    initial_tab = resolve_initial_tab(request)
+
+    timeline_trees: dict[str, list] = {}
+    timeline_pagers: dict[str, dict | None] = {}
+    for p in PLATFORM_TAB_ORDER:
+        if p == "apple":
+            timeline_trees[p] = []
+            timeline_pagers[p] = None
+            continue
+        full_tree = build_timeline_tree(p, rows)
+        page = parse_timeline_page(request, p)
+        sliced, meta = paginate_timeline_versions(full_tree, page, TIMELINE_PER_PAGE)
+        timeline_trees[p] = sliced
+        timeline_pagers[p] = build_timeline_pager(request, p, meta)
+
     return templates.TemplateResponse(
         request=request,
         name="index.html",
@@ -147,6 +215,8 @@ def index(request: Request, db: Session = Depends(get_db)):
             "latest_by_platform": latest_map,
             "latest_platform_data": latest_platform_payload(latest_map),
             "timeline_trees": timeline_trees,
+            "timeline_pagers": timeline_pagers,
+            "initial_tab": initial_tab,
             "project_name": PROJECT_NAME,
             "logo_url": get_logo_url(),
             "platforms": sorted(PLATFORMS),

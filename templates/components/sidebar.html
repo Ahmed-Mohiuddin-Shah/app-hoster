@@ -17,7 +17,7 @@
       {% endif %}
       <div class="min-w-0 flex-1">
         <p class="truncate text-sm font-semibold tracking-tight">{{ project_name }}</p>
-        {% set la0 = latest_by_platform['android'] %}
+        {% set la0 = latest_by_platform[initial_tab] %}
         <p class="mt-1 truncate text-xs text-zinc-500">
           App <span id="sidebar-app-version" class="font-mono text-accent">{{ la0.version if la0 else '—' }}</span>
         </p>
@@ -45,8 +45,8 @@
       <button
         type="button"
         data-tab="{{ p }}"
-        aria-selected="{{ 'true' if p == 'android' else 'false' }}"
-        class="tab-btn flex w-full items-center gap-3 rounded-lg border px-2 py-2 text-left text-sm transition {% if p == 'android' %}border-accent/60 bg-zinc-800/80 text-accent{% else %}border-transparent text-zinc-400 hover:border-zinc-700 hover:bg-zinc-900 hover:text-zinc-200{% endif %}"
+        aria-selected="{{ 'true' if p == initial_tab else 'false' }}"
+        class="tab-btn flex w-full items-center gap-3 rounded-lg border px-2 py-2 text-left text-sm transition {% if p == initial_tab %}border-accent/60 bg-zinc-800/80 text-accent{% else %}border-transparent text-zinc-400 hover:border-zinc-700 hover:bg-zinc-900 hover:text-zinc-200{% endif %}"
       >
         <span class="flex h-9 w-9 shrink-0 items-center justify-center text-base" aria-hidden="true">
           {% if p == 'android' %}🤖{% elif p == 'apple' %}🍎{% elif p == 'windows' %}🪟{% elif p == 'linux' %}🐧{% else %}🌐{% endif %}
