@@ -63,6 +63,15 @@ PLATFORM_TAB_ICONS = {
     "linux": "/svgs/linux.svg",
     "web": "/svgs/web.svg",
 }
+# Per-tab: apply brightness-0 + invert on <img> so black/dark SVGs read on black (skip for multicolor icons).
+PLATFORM_TAB_ICON_INVERT: dict[str, bool] = {
+    "android": False,
+    "apple": True,
+    "macos": True,
+    "windows": True,
+    "linux": False,
+    "web": True,
+}
 UNSUPPORTED_TAB_PLATFORMS = frozenset({"apple", "macos"})
 
 try:
@@ -258,6 +267,7 @@ def index(request: Request, db: Session = Depends(get_db)):
             "platform_tab_order": PLATFORM_TAB_ORDER,
             "platform_tab_labels": PLATFORM_TAB_LABELS,
             "platform_tab_icons": PLATFORM_TAB_ICONS,
+            "platform_tab_icon_invert": PLATFORM_TAB_ICON_INVERT,
             "unsupported_tab_platforms": UNSUPPORTED_TAB_PLATFORMS,
         },
     )
