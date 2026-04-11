@@ -45,7 +45,25 @@ MAX_UPLOAD_BYTES = 200 * 1024 * 1024  # 200 MB
 SVGS_DIR = Path(__file__).resolve().parent / "svgs"
 SVGS_DIR.mkdir(parents=True, exist_ok=True)
 
-PLATFORM_TAB_ORDER = ("android", "apple", "windows", "linux", "web")
+# Tab order may include UI-only slugs (e.g. macos) not in PLATFORMS / DB.
+PLATFORM_TAB_ORDER = ("android", "apple", "macos", "windows", "linux", "web")
+PLATFORM_TAB_LABELS = {
+    "android": "Android",
+    "apple": "iOS",
+    "macos": "macOS",
+    "windows": "Windows",
+    "linux": "Linux",
+    "web": "Web",
+}
+PLATFORM_TAB_ICONS = {
+    "android": "/svgs/android.svg",
+    "apple": "/svgs/ios.svg",
+    "macos": "/svgs/macos.svg",
+    "windows": "/svgs/windows.svg",
+    "linux": "/svgs/linux.svg",
+    "web": "/svgs/web.svg",
+}
+UNSUPPORTED_TAB_PLATFORMS = frozenset({"apple", "macos"})
 
 try:
     TIMELINE_PER_PAGE = max(1, int(os.environ.get("TIMELINE_PER_PAGE", "8")))
@@ -130,6 +148,15 @@ def resolve_initial_tab(request: Request) -> str:
     return tab
 
 
+def latest_by_platform_with_tabs(releases: list[Release]) -> dict[str, Release | None]:
+    """Like latest_by_platform plus null entries for UI-only tabs (e.g. macOS)."""
+    m = dict(latest_by_platform(releases))
+    for p in PLATFORM_TAB_ORDER:
+        if p not in m:
+            m[p] = None
+    return m
+
+
 def parse_timeline_page(request: Request, platform: str) -> int:
     raw = request.query_params.get(f"page_{platform}", "1")
     try:
@@ -199,13 +226,13 @@ def logo_svg_legacy():
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request, db: Session = Depends(get_db)):
     rows = list(db.scalars(select(Release)).all())
-    latest_map = latest_by_platform(rows)
+    latest_map = latest_by_platform_with_tabs(rows)
     initial_tab = resolve_initial_tab(request)
 
     timeline_trees: dict[str, list] = {}
     timeline_pagers: dict[str, dict | None] = {}
     for p in PLATFORM_TAB_ORDER:
-        if p == "apple":
+        if p in UNSUPPORTED_TAB_PLATFORMS:
             timeline_trees[p] = []
             timeline_pagers[p] = None
             continue
@@ -229,6 +256,9 @@ def index(request: Request, db: Session = Depends(get_db)):
             "logo_url": get_logo_url(),
             "platforms": sorted(PLATFORMS),
             "platform_tab_order": PLATFORM_TAB_ORDER,
+            "platform_tab_labels": PLATFORM_TAB_LABELS,
+            "platform_tab_icons": PLATFORM_TAB_ICONS,
+            "unsupported_tab_platforms": UNSUPPORTED_TAB_PLATFORMS,
         },
     )
 

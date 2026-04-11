@@ -48,10 +48,10 @@
         aria-selected="{{ 'true' if p == initial_tab else 'false' }}"
         class="tab-btn flex w-full items-center gap-3 rounded-lg border px-2 py-2 text-left text-sm transition {% if p == initial_tab %}border-accent/60 bg-zinc-800/80 text-accent{% else %}border-transparent text-zinc-400 hover:border-zinc-700 hover:bg-zinc-900 hover:text-zinc-200{% endif %}"
       >
-        <span class="flex h-9 w-9 shrink-0 items-center justify-center text-base" aria-hidden="true">
-          {% if p == 'android' %}🤖{% elif p == 'apple' %}🍎{% elif p == 'windows' %}🪟{% elif p == 'linux' %}🐧{% else %}🌐{% endif %}
+        <span class="flex h-9 w-9 shrink-0 items-center justify-center" aria-hidden="true">
+          <img src="{{ platform_tab_icons[p] }}" alt="" class="h-6 w-6 object-contain opacity-90" width="24" height="24" />
         </span>
-        <span class="sidebar-tab-label min-w-0 truncate font-medium capitalize">{{ p }}</span>
+        <span class="sidebar-tab-label min-w-0 truncate font-medium">{{ platform_tab_labels[p] }}</span>
       </button>
       {% endfor %}
     </nav>

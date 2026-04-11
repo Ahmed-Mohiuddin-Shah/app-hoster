@@ -13,12 +13,12 @@
         <button
           type="button"
           data-tab="{{ p }}"
-          data-label="{{ p | capitalize }}"
-          aria-label="{{ p }}"
+          data-label="{{ platform_tab_labels[p] }}"
+          aria-label="{{ platform_tab_labels[p] }}"
           aria-selected="{{ 'true' if p == initial_tab else 'false' }}"
           class="tab-btn-mobile flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border text-lg transition {{ 'border-accent bg-zinc-800/80 text-accent' if p == initial_tab else 'border-zinc-800 bg-zinc-950 text-zinc-500' }}"
         >
-          {% if p == 'android' %}🤖{% elif p == 'apple' %}🍎{% elif p == 'windows' %}🪟{% elif p == 'linux' %}🐧{% else %}🌐{% endif %}
+          <img src="{{ platform_tab_icons[p] }}" alt="" class="h-6 w-6 object-contain opacity-90" width="24" height="24" />
         </button>
         {% endfor %}
       </div>
@@ -27,7 +27,7 @@
     <main class="flex-1 overflow-auto px-4 py-6 md:px-8 md:py-10">
       {% for p in platform_tab_order %}
       <div id="panel-{{ p }}" class="platform-panel {% if p != initial_tab %}hidden{% endif %}">
-        {% if p == 'apple' %}
+        {% if p in unsupported_tab_platforms %}
         <div class="py-16 text-center">
           <p class="text-lg font-medium text-zinc-400">Not Supported</p>
           <p class="mt-2 text-sm text-zinc-600">Apple builds are not available on this host.</p>
