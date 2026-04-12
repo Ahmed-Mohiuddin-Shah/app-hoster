@@ -227,6 +227,86 @@
     const browseBtn = document.getElementById("upload-browse");
     const form = document.getElementById("upload-form");
     const msg = document.getElementById("upload-message");
+    const fileStatusEl = document.getElementById("upload-file-status");
+    const uploadProgressWrap = document.getElementById("upload-progress-wrap");
+    const uploadProgressBar = document.getElementById("upload-progress-bar");
+    const uploadProgressLabel = document.getElementById("upload-progress-label");
+    const uploadSubmitSpinner = document.getElementById("upload-submit-spinner");
+    const uploadSubmitText = document.getElementById("upload-submit-text");
+    const uploadSubmit = document.getElementById("upload-submit");
+    let uploadXhr = null;
+    let uploadInFlight = false;
+
+    function updateFileStatus() {
+      if (!fileStatusEl || !fileInput) return;
+      const f = fileInput.files && fileInput.files[0];
+      if (!f || !f.name) {
+        fileStatusEl.textContent = "";
+        fileStatusEl.classList.add("hidden");
+        return;
+      }
+      const size = f.size;
+      let sz;
+      if (size < 1024) sz = size + " B";
+      else if (size < 1048576) sz = (size / 1024).toFixed(1) + " KB";
+      else sz = (size / 1048576).toFixed(1) + " MB";
+      fileStatusEl.textContent = "Selected: " + f.name + " (" + sz + ")";
+      fileStatusEl.classList.remove("hidden");
+    }
+
+    function setUploadProgress(loaded, total) {
+      if (!uploadProgressWrap || !uploadProgressBar || !uploadProgressLabel) return;
+      uploadProgressWrap.classList.remove("hidden");
+      if (!total || total <= 0) {
+        uploadProgressBar.style.width = "100%";
+        uploadProgressLabel.textContent = "Uploading…";
+        return;
+      }
+      const pct = Math.min(100, Math.round((loaded / total) * 100));
+      uploadProgressBar.style.width = pct + "%";
+      uploadProgressLabel.textContent = "Sending file: " + pct + "%";
+    }
+
+    function setUploadLoading(loading) {
+      if (!uploadSubmit) return;
+      uploadInFlight = !!loading;
+      uploadSubmit.disabled = !!loading;
+      uploadSubmit.setAttribute("aria-busy", loading ? "true" : "false");
+      if (uploadSubmitSpinner) uploadSubmitSpinner.classList.toggle("hidden", !loading);
+      if (uploadSubmitText) uploadSubmitText.textContent = loading ? "Uploading…" : "Submit";
+      if (!loading && uploadProgressWrap && uploadProgressBar && uploadProgressLabel) {
+        uploadProgressWrap.classList.add("hidden");
+        uploadProgressBar.style.width = "0%";
+        uploadProgressLabel.textContent = "";
+      }
+    }
+
+    function postFormUpload(formData, onProgress) {
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        uploadXhr = xhr;
+        xhr.open("POST", "/upload");
+        xhr.upload.addEventListener("progress", (e) => {
+          if (e.lengthComputable && e.total > 0) onProgress(e.loaded, e.total);
+          else onProgress(0, 0);
+        });
+        xhr.onload = () => {
+          uploadXhr = null;
+          resolve({ status: xhr.status, text: xhr.responseText });
+        };
+        xhr.onerror = () => {
+          uploadXhr = null;
+          reject(new Error("Network error"));
+        };
+        xhr.onabort = () => {
+          uploadXhr = null;
+          const err = new Error("aborted");
+          err.isAbort = true;
+          reject(err);
+        };
+        xhr.send(formData);
+      });
+    }
 
     function openModal() {
       if (!modal || window.matchMedia("(max-width: 767px)").matches) return;
@@ -236,6 +316,12 @@
     }
     function closeModal() {
       if (!modal) return;
+      uploadInFlight = false;
+      setUploadLoading(false);
+      if (uploadXhr) {
+        uploadXhr.abort();
+        uploadXhr = null;
+      }
       modal.classList.add("hidden");
       modal.classList.remove("flex");
       modal.setAttribute("aria-hidden", "true");
@@ -272,19 +358,36 @@
       });
       dropzone.addEventListener("drop", (e) => {
         if (e.dataTransfer.files.length) fileInput.files = e.dataTransfer.files;
+        updateFileStatus();
       });
+      fileInput.addEventListener("change", updateFileStatus);
     }
 
     form &&
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
+        if (uploadInFlight) return;
         msg.classList.add("hidden");
+        msg.textContent = "";
         const fd = new FormData(form);
-        const submit = document.getElementById("upload-submit");
-        submit.disabled = true;
+        const platEarly = document.getElementById("upload-platform");
+        const platVal = platEarly ? platEarly.value : "android";
+        const isWeb = platVal === "web";
+        if (uploadProgressWrap) {
+          if (isWeb) {
+            uploadProgressWrap.classList.add("hidden");
+          } else {
+            uploadProgressWrap.classList.remove("hidden");
+            if (uploadProgressBar) uploadProgressBar.style.width = "0%";
+            if (uploadProgressLabel) uploadProgressLabel.textContent = "Preparing upload…";
+          }
+        }
+        setUploadLoading(true);
         try {
-          const res = await fetch("/upload", { method: "POST", body: fd });
-          const text = await res.text();
+          const res = await postFormUpload(fd, (loaded, total) => {
+            if (!isWeb) setUploadProgress(loaded, total);
+          });
+          const text = res.text;
           let detail = text;
           try {
             const j = JSON.parse(text);
@@ -294,19 +397,23 @@
                 : String(j.detail);
             }
           } catch (_) {}
-          if (res.ok) {
+          if (res.status >= 200 && res.status < 300) {
             window.location.reload();
             return;
           }
+          setUploadLoading(false);
           msg.textContent = res.status + ": " + detail;
           msg.classList.remove("hidden", "text-accent");
           msg.classList.add("text-red-400");
         } catch (err) {
-          msg.textContent = "Network error";
+          if (err && err.isAbort) {
+            setUploadLoading(false);
+            return;
+          }
+          setUploadLoading(false);
+          msg.textContent = err && err.message === "Network error" ? "Network error" : "Upload failed";
           msg.classList.remove("hidden", "text-accent");
           msg.classList.add("text-red-400");
-        } finally {
-          submit.disabled = false;
         }
       });
 
@@ -357,6 +464,7 @@
           wu.value = "";
         }
       }
+      updateFileStatus();
     }
     uploadPlatform && uploadPlatform.addEventListener("change", syncUploadFields);
     syncUploadFields();
@@ -482,6 +590,20 @@
     const prevDbg = document.getElementById("server-link-prev-debug");
     const slMsg = document.getElementById("server-links-message");
     const inpSecret = document.getElementById("server-links-secret");
+    const slSaveSpinner = document.getElementById("server-links-save-spinner");
+    const slSaveText = document.getElementById("server-links-save-text");
+    let serverLinksSaveInFlight = false;
+
+    function setServerLinksSaving(loading) {
+      if (!saveSl) return;
+      serverLinksSaveInFlight = !!loading;
+      saveSl.disabled = !!loading;
+      saveSl.setAttribute("aria-busy", loading ? "true" : "false");
+      if (cancelSl) cancelSl.disabled = !!loading;
+      if (closeSl) closeSl.disabled = !!loading;
+      if (slSaveSpinner) slSaveSpinner.classList.toggle("hidden", !loading);
+      if (slSaveText) slSaveText.textContent = loading ? "Saving…" : "Save";
+    }
 
     function setPrevLabel(el, text) {
       if (!el) return;
@@ -507,6 +629,7 @@
         slMsg.textContent = "";
         slMsg.classList.remove("text-red-400", "text-accent");
       }
+      setServerLinksSaving(false);
       if (inpSecret) inpSecret.value = "";
       slModal.classList.remove("hidden");
       slModal.classList.add("flex");
@@ -514,6 +637,7 @@
     }
     function closeServerLinksModal() {
       if (!slModal) return;
+      setServerLinksSaving(false);
       if (inpSecret) inpSecret.value = "";
       slModal.classList.add("hidden");
       slModal.classList.remove("flex");
@@ -526,10 +650,11 @@
     cancelSl && cancelSl.addEventListener("click", closeServerLinksModal);
     slModal &&
       slModal.addEventListener("click", (e) => {
-        if (e.target === slModal) closeServerLinksModal();
+        if (e.target === slModal && !serverLinksSaveInFlight) closeServerLinksModal();
       });
     saveSl &&
       saveSl.addEventListener("click", async () => {
+        if (serverLinksSaveInFlight) return;
         if (!inpSecret || !inpSecret.value.trim()) {
           if (slMsg) {
             slMsg.textContent = "Enter the secret key to save server links.";
@@ -538,6 +663,12 @@
           }
           return;
         }
+        if (slMsg) {
+          slMsg.classList.add("hidden");
+          slMsg.textContent = "";
+          slMsg.classList.remove("text-red-400", "text-accent");
+        }
+        setServerLinksSaving(true);
         const fd = new FormData();
         fd.append("secret_key", inpSecret.value);
         fd.append("prod", inpProd ? inpProd.value : "");
@@ -586,9 +717,11 @@
         } catch {
           if (slMsg) {
             slMsg.textContent = "Network error";
-            slMsg.classList.remove("hidden");
+            slMsg.classList.remove("hidden", "text-accent");
             slMsg.classList.add("text-red-400");
           }
+        } finally {
+          setServerLinksSaving(false);
         }
       });
 
