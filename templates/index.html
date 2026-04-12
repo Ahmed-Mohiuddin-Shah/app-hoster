@@ -363,10 +363,31 @@
       fileInput.addEventListener("change", updateFileStatus);
     }
 
+    function formatPipelineTagVersion(raw) {
+      const t = (raw == null ? "" : String(raw)).trim();
+      if (!t) return "";
+      if (/^[vV]/.test(t)) return t[0] === "V" ? "v" + t.slice(1) : t;
+      return "v" + t;
+    }
+
+    function applyUploadVersionVPrefix(el) {
+      if (!el) return;
+      const next = formatPipelineTagVersion(el.value);
+      if (next !== el.value) el.value = next;
+    }
+
+    const uploadVersionInp = document.getElementById("upload-version");
+    const uploadServerVersionInp = document.getElementById("upload-server-version");
+    uploadVersionInp && uploadVersionInp.addEventListener("blur", () => applyUploadVersionVPrefix(uploadVersionInp));
+    uploadServerVersionInp &&
+      uploadServerVersionInp.addEventListener("blur", () => applyUploadVersionVPrefix(uploadServerVersionInp));
+
     form &&
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
         if (uploadInFlight) return;
+        applyUploadVersionVPrefix(uploadVersionInp);
+        applyUploadVersionVPrefix(uploadServerVersionInp);
         msg.classList.add("hidden");
         msg.textContent = "";
         const fd = new FormData(form);
