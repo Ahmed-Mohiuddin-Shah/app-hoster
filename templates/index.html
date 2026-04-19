@@ -65,6 +65,17 @@
     const tabBtnsMobile = document.querySelectorAll(".tab-btn-mobile");
     const latestRaw = document.getElementById("latest-platform-data");
     const latestByPlatform = latestRaw ? JSON.parse(latestRaw.textContent) : {};
+    let currentPlatform = "android";
+
+    /** Live GET /api-version from prod (release) upload URL, else latest row server_version for this platform. */
+    function headerServerVersionText(platform) {
+      const api = window.__uploadServerApiVersions;
+      if (api && api.release != null && String(api.release).trim() !== "") {
+        return String(api.release).trim();
+      }
+      const info = latestByPlatform[platform];
+      return info && info.server_version ? info.server_version : "—";
+    }
 
     function updateHeader(platform) {
       const info = latestByPlatform[platform];
@@ -75,7 +86,7 @@
       const appCompact = document.getElementById("sidebar-compact-app-version");
       const srvCompact = document.getElementById("sidebar-compact-server-version");
       const v = info && info.version ? info.version : "—";
-      const s = info && info.server_version ? info.server_version : "—";
+      const s = headerServerVersionText(platform);
       if (appEl) appEl.textContent = v;
       if (srvEl) srvEl.textContent = s;
       if (appSb) appSb.textContent = v;
@@ -85,6 +96,7 @@
     }
 
     function setPlatform(p) {
+      currentPlatform = p;
       Object.keys(panels).forEach((k) => {
         panels[k].classList.toggle("hidden", k !== p);
       });
@@ -725,6 +737,7 @@
           inpSecret.value = "";
           closeServerLinksModal();
           await refreshUploadServerApiVersions();
+          updateHeader(currentPlatform);
           applyReleaseCompatibilityUi();
         } catch {
           if (slMsg) {
@@ -739,6 +752,7 @@
 
     (async () => {
       await refreshUploadServerApiVersions();
+      updateHeader(currentPlatform);
       applyReleaseCompatibilityUi();
     })();
   })();
