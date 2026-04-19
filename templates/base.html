@@ -55,6 +55,116 @@
       padding-left: 0.25rem;
       padding-right: 0.25rem;
     }
+    /* Markdown-rendered release notes */
+    .release-notes-md {
+      min-width: 0;
+    }
+    .release-notes-md > :first-child {
+      margin-top: 0;
+    }
+    .release-notes-md > :last-child {
+      margin-bottom: 0;
+    }
+    .release-notes-md p {
+      margin-top: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .release-notes-md h1 {
+      font-size: 1.125rem;
+      font-weight: 600;
+      margin-top: 0.75rem;
+      margin-bottom: 0.35rem;
+      color: #fafafa;
+    }
+    .release-notes-md h2 {
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin-top: 0.65rem;
+      margin-bottom: 0.3rem;
+      color: #e4e4e7;
+    }
+    .release-notes-md h3,
+    .release-notes-md h4 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin-top: 0.5rem;
+      margin-bottom: 0.25rem;
+      color: #d4d4d8;
+    }
+    .release-notes-md ul {
+      list-style: disc;
+      padding-left: 1.25rem;
+      margin: 0.35rem 0;
+    }
+    .release-notes-md ol {
+      list-style: decimal;
+      padding-left: 1.25rem;
+      margin: 0.35rem 0;
+    }
+    .release-notes-md li {
+      margin: 0.15rem 0;
+    }
+    .release-notes-md blockquote {
+      border-left: 3px solid #3f3f46;
+      padding-left: 0.75rem;
+      margin: 0.5rem 0;
+      color: #a1a1aa;
+    }
+    .release-notes-md a {
+      color: #39ff14;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .release-notes-md a:hover {
+      color: #86efac;
+    }
+    .release-notes-md code {
+      font-size: 0.875em;
+      background: #27272a;
+      padding: 0.1em 0.35em;
+      border-radius: 0.25rem;
+    }
+    .release-notes-md pre {
+      margin: 0.5rem 0;
+      padding: 0.75rem 1rem;
+      border-radius: 0.5rem;
+      background: #18181b;
+      border: 1px solid #3f3f46;
+      overflow-x: auto;
+      font-size: 0.8125rem;
+      line-height: 1.45;
+    }
+    .release-notes-md pre code {
+      background: transparent;
+      padding: 0;
+      font-size: inherit;
+    }
+    .release-notes-md table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0.5rem 0;
+      font-size: 0.8125rem;
+    }
+    .release-notes-md th,
+    .release-notes-md td {
+      border: 1px solid #3f3f46;
+      padding: 0.35rem 0.5rem;
+      text-align: left;
+    }
+    .release-notes-md th {
+      background: #18181b;
+      color: #e4e4e7;
+    }
+    .release-notes-md hr {
+      margin: 0.75rem 0;
+      border: 0;
+      border-top: 1px solid #3f3f46;
+    }
+    .release-notes-md img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 0.375rem;
+    }
   </style>
 </head>
 <body class="h-full min-h-screen bg-black text-white antialiased">

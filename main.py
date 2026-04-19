@@ -36,6 +36,7 @@ from models import (
     sort_releases_desc,
     uploads_dir,
 )
+from release_notes_markup import release_notes_html
 from schemas import ReleaseOut, UploadServerApiVersionsIn, UploadServerApiVersionsOut
 
 load_dotenv()
@@ -126,6 +127,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="APK Host", lifespan=lifespan)
 templates = Jinja2Templates(directory="templates")
+templates.env.filters["release_notes_html"] = release_notes_html
 app.mount("/svgs", StaticFiles(directory=str(SVGS_DIR)), name="svgs")
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 

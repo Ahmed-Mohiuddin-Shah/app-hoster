@@ -100,13 +100,20 @@
         />
       </div>
       <div>
-        <label class="mb-1 block text-xs font-medium text-zinc-400" for="upload-notes">Release notes</label>
+        <label class="mb-1 block text-xs font-medium text-zinc-400" for="upload-notes"
+          >Release notes <span class="font-normal text-zinc-600">(Markdown)</span></label
+        >
         <textarea
           id="upload-notes"
           name="release_notes"
-          rows="3"
-          class="w-full rounded-2xl border border-zinc-700 bg-black px-4 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:border-accent focus:outline-none"
+          rows="6"
+          placeholder="## What&#39;s new&#10;- Bullet points&#10;- **Bold** and `inline code`&#10;&#10;```&#10;fenced code blocks&#10;```"
+          class="w-full rounded-2xl border border-zinc-700 bg-black px-4 py-2.5 font-mono text-sm text-white placeholder:text-zinc-600 focus:border-accent focus:outline-none"
         ></textarea>
+        <p class="mt-1.5 text-[11px] leading-snug text-zinc-600">
+          Markdown is supported: headings, lists, links, tables, and fenced code blocks. Content is sanitized when
+          displayed.
+        </p>
       </div>
       <div>
         <label class="mb-1 block text-xs font-medium text-zinc-400" for="upload-secret">Secret key</label>

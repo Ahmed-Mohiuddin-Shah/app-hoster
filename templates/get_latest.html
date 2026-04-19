@@ -8,6 +8,14 @@
   {% if release %}
   <p class="mt-1 text-center text-xs text-zinc-500">{{ platform_label }} · release {{ release.version }}</p>
 
+  {% if release.release_notes and release.release_notes.strip() %}
+  <div
+    class="release-notes-md mt-6 w-full max-w-lg text-left text-sm leading-relaxed text-zinc-300"
+  >
+    {{ release.release_notes | release_notes_html }}
+  </div>
+  {% endif %}
+
   <div class="mt-8 flex flex-col items-center gap-6">
     <div
       id="qr-wrap"
