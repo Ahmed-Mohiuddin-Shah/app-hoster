@@ -51,6 +51,9 @@ MAX_UPLOAD_BYTES = 200 * 1024 * 1024  # 200 MB
 SVGS_DIR = Path(__file__).resolve().parent / "svgs"
 SVGS_DIR.mkdir(parents=True, exist_ok=True)
 
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+STATIC_DIR.mkdir(parents=True, exist_ok=True)
+
 # Tab order may include UI-only slugs (e.g. macos) not in PLATFORMS / DB.
 PLATFORM_TAB_ORDER = ("android", "apple", "macos", "windows", "linux", "web")
 PLATFORM_TAB_LABELS = {
@@ -124,6 +127,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="APK Host", lifespan=lifespan)
 templates = Jinja2Templates(directory="templates")
 app.mount("/svgs", StaticFiles(directory=str(SVGS_DIR)), name="svgs")
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
 def list_sorted_releases(db: Session, platform: str | None = None) -> list[Release]:

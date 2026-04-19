@@ -44,28 +44,31 @@
 
 {% block scripts %}
 {% if release %}
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script src="/static/vendor/qr-code-styling.js"></script>
 <script>
   (function () {
-    const url = {{ download_url | tojson }};
     const wrap = document.getElementById("qr-wrap");
     const copyBtn = document.getElementById("copy-btn");
     const status = document.getElementById("copy-status");
+    const url = (copyBtn && copyBtn.getAttribute("data-url")) || "";
 
-    if (typeof QRCode !== "undefined" && wrap) {
-      const canvas = document.createElement("canvas");
-      QRCode.toCanvas(
-        canvas,
-        url,
-        { width: 220, margin: 2, color: { dark: "#000000", light: "#ffffff" } },
-        function (err) {
-          if (err) {
-            wrap.textContent = "Could not generate QR code.";
-            return;
-          }
-          wrap.appendChild(canvas);
-        }
-      );
+    if (wrap && typeof QRCodeStyling !== "undefined") {
+      wrap.innerHTML = "";
+      const qr = new QRCodeStyling({
+        width: 240,
+        height: 240,
+        type: "svg",
+        data: url || " ",
+        margin: 10,
+        qrOptions: { errorCorrectionLevel: "M" },
+        dotsOptions: { type: "rounded", color: "#111827" },
+        backgroundOptions: { color: "#ffffff" },
+        cornersSquareOptions: { type: "extra-rounded", color: "#111827" },
+        cornersDotOptions: { type: "dot", color: "#111827" },
+      });
+      qr.append(wrap);
+    } else if (wrap) {
+      wrap.textContent = "Could not load QR generator.";
     }
 
     if (copyBtn && status) {
