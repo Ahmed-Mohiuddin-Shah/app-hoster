@@ -31,6 +31,7 @@ from models import (
     paginate_timeline_versions,
     is_valid_semver,
     latest_by_platform,
+    latest_release_for_platform,
     media_type_for_artifact,
     sort_releases_desc,
     uploads_dir,
@@ -285,6 +286,36 @@ def index(request: Request, db: Session = Depends(get_db)):
             "platform_tab_icons": PLATFORM_TAB_ICONS,
             "platform_tab_icon_invert": PLATFORM_TAB_ICON_INVERT,
             "unsupported_tab_platforms": UNSUPPORTED_TAB_PLATFORMS,
+        },
+    )
+
+
+@app.get("/get-latest", response_class=HTMLResponse)
+def get_latest(
+    request: Request,
+    platform: str = "android",
+    db: Session = Depends(get_db),
+):
+    """Minimal page: latest release download link as QR + copy / download actions."""
+    p = platform.strip().lower()
+    if p not in PLATFORMS:
+        raise HTTPException(status_code=400, detail="Invalid platform")
+
+    rows = list(db.scalars(select(Release)).all())
+    rel = latest_release_for_platform(rows, p)
+    base = str(request.base_url).rstrip("/")
+    download_url = f"{base}/download/{rel.id}" if rel else ""
+
+    return templates.TemplateResponse(
+        request=request,
+        name="get_latest.html",
+        context={
+            "request": request,
+            "project_name": PROJECT_NAME,
+            "platform": p,
+            "platform_label": PLATFORM_TAB_LABELS.get(p, p.title()),
+            "release": rel,
+            "download_url": download_url,
         },
     )
 
