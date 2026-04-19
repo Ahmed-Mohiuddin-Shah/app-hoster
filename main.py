@@ -125,7 +125,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="APK Host", lifespan=lifespan)
+app = FastAPI(title="APK Host", lifespan=lifespan, version=API_VERSION)
 templates = Jinja2Templates(directory="templates")
 templates.env.filters["release_notes_html"] = release_notes_html
 app.mount("/svgs", StaticFiles(directory=str(SVGS_DIR)), name="svgs")
