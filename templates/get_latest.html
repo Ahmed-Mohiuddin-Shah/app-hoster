@@ -44,7 +44,7 @@
 
 {% block scripts %}
 {% if release %}
-<script src="/static/vendor/qr-code-styling.js"></script>
+<script src="{{ request.url_for('static', path='vendor/qr-code-styling.js') }}"></script>
 <script>
   (function () {
     const wrap = document.getElementById("qr-wrap");

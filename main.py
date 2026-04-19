@@ -307,8 +307,7 @@ def get_latest(
 
     rows = list(db.scalars(select(Release)).all())
     rel = latest_release_for_platform(rows, p)
-    base = str(request.base_url).rstrip("/")
-    download_url = f"{base}/download/{rel.id}" if rel else ""
+    download_url = str(request.url_for("download", release_id=rel.id)) if rel else ""
 
     return templates.TemplateResponse(
         request=request,
