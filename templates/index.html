@@ -507,44 +507,35 @@
     function saveServerLinks(obj) {
       localStorage.setItem(LS_SERVER_LINKS, JSON.stringify(obj));
     }
-    function toApiVersionUrl(base) {
-      if (!base || !String(base).trim()) return null;
-      return String(base).trim().replace(/\/+$/, "") + "/api-version";
-    }
-    function profileBaseUrl(links) {
-      const p = (links.profile || "").trim();
-      if (p) return p;
-      return (links.debug || "").trim();
-    }
-    async function fetchApiVersionAt(fullUrl) {
-      if (!fullUrl) return null;
-      try {
-        const res = await fetch(fullUrl, { credentials: "omit", mode: "cors" });
-        if (!res.ok) return null;
-        const j = await res.json();
-        return j && j.version != null ? String(j.version).trim() : null;
-      } catch {
-        return null;
-      }
-    }
     async function refreshUploadServerApiVersions() {
       const links = loadServerLinks();
-      const prodU = toApiVersionUrl(links.prod);
-      const profU = toApiVersionUrl(profileBaseUrl(links));
-      const dbgU = toApiVersionUrl(links.debug);
-      const cache = new Map();
-      async function one(u) {
-        if (!u) return null;
-        if (cache.has(u)) return cache.get(u);
-        const v = await fetchApiVersionAt(u);
-        cache.set(u, v);
-        return v;
+      const empty = { release: null, profile: null, debug: null };
+      try {
+        const res = await fetch("/upload-server-api-versions", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prod: typeof links.prod === "string" ? links.prod : "",
+            profile: typeof links.profile === "string" ? links.profile : "",
+            debug: typeof links.debug === "string" ? links.debug : "",
+          }),
+        });
+        if (!res.ok) {
+          window.__uploadServerApiVersions = empty;
+          return window.__uploadServerApiVersions;
+        }
+        const j = await res.json();
+        window.__uploadServerApiVersions = {
+          release: j && j.release != null ? String(j.release).trim() || null : null,
+          profile: j && j.profile != null ? String(j.profile).trim() || null : null,
+          debug: j && j.debug != null ? String(j.debug).trim() || null : null,
+        };
+        return window.__uploadServerApiVersions;
+      } catch {
+        window.__uploadServerApiVersions = empty;
+        return window.__uploadServerApiVersions;
       }
-      const releaseV = await one(prodU);
-      const profileV = await one(profU);
-      const debugV = await one(dbgU);
-      window.__uploadServerApiVersions = { release: releaseV, profile: profileV, debug: debugV };
-      return window.__uploadServerApiVersions;
     }
     function apiVersionForBuildType(bt) {
       const v = window.__uploadServerApiVersions || {};

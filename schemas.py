@@ -3,6 +3,20 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict
 
 
+class UploadServerApiVersionsIn(BaseModel):
+    """Upload host base URLs (same shape as browser localStorage)."""
+
+    prod: str = ""
+    profile: str = ""
+    debug: str = ""
+
+
+class UploadServerApiVersionsOut(BaseModel):
+    release: str | None = None
+    profile: str | None = None
+    debug: str | None = None
+
+
 class ReleaseOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

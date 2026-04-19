@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import ipaddress
 import os
 import re
 import secrets
+import socket
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import urlencode, urlparse
 
+import httpx
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
@@ -32,7 +35,7 @@ from models import (
     sort_releases_desc,
     uploads_dir,
 )
-from schemas import ReleaseOut
+from schemas import ReleaseOut, UploadServerApiVersionsIn, UploadServerApiVersionsOut
 
 load_dotenv()
 
@@ -310,6 +313,116 @@ def download(release_id: int, db: Session = Depends(get_db)):
         filename=safe_download_filename(r.version, r.build_type, r.artifact_kind),
         media_type=media_type_for_artifact(r.artifact_kind),
     )
+
+
+def _upload_base_profile_fallback(profile: str, debug: str) -> str:
+    p = profile.strip()
+    if p:
+        return p
+    return debug.strip()
+
+
+def _upload_api_version_url(base: str) -> str | None:
+    b = base.strip()
+    if not b:
+        return None
+    return b.rstrip("/") + "/api-version"
+
+
+def _host_resolves_only_to_public_ips(hostname: str) -> bool:
+    try:
+        infos = socket.getaddrinfo(hostname, None, type=socket.SOCK_STREAM)
+    except OSError:
+        return False
+    seen = False
+    for info in infos:
+        sockaddr = info[4]
+        ip_str = sockaddr[0]
+        try:
+            addr = ipaddress.ip_address(ip_str)
+        except ValueError:
+            continue
+        seen = True
+        if not addr.is_global:
+            return False
+    return seen
+
+
+def _is_trusted_upload_base_url(raw: str) -> bool:
+    """Restrict outbound fetches to reduce SSRF (public https origins, or http to loopback only)."""
+    s = raw.strip()
+    if not s or len(s) > 2048:
+        return False
+    parsed = urlparse(s)
+    if parsed.username or parsed.password:
+        return False
+    if parsed.scheme not in ("http", "https"):
+        return False
+    host = parsed.hostname
+    if not host:
+        return False
+    hl = host.lower()
+    if parsed.scheme == "http" and hl in ("localhost", "127.0.0.1", "::1"):
+        return True
+    if parsed.scheme != "https":
+        return False
+    return _host_resolves_only_to_public_ips(hl)
+
+
+async def _fetch_upload_api_version(client: httpx.AsyncClient, base: str) -> str | None:
+    base = base.strip()
+    if not base:
+        return None
+    if not _is_trusted_upload_base_url(base):
+        return None
+    full = _upload_api_version_url(base)
+    if not full:
+        return None
+    try:
+        r = await client.get(full, follow_redirects=True)
+        if r.status_code != 200:
+            return None
+        data = r.json()
+        if not isinstance(data, dict):
+            return None
+        v = data.get("version")
+        if v is None:
+            return None
+        out = str(v).strip()
+        return out or None
+    except Exception:
+        return None
+
+
+@app.post("/upload-server-api-versions")
+async def upload_server_api_versions(body: UploadServerApiVersionsIn) -> UploadServerApiVersionsOut:
+    """
+    Fetch each upload host's GET /api-version server-side so the browser does not need CORS
+    on the upload servers.
+    """
+    prod = body.prod.strip()
+    profile = body.profile.strip()
+    debug = body.debug.strip()
+    prof_base = _upload_base_profile_fallback(profile, debug)
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        cache: dict[str, str | None] = {}
+
+        async def one(base: str) -> str | None:
+            b = base.strip()
+            if not b:
+                return None
+            if b in cache:
+                return cache[b]
+            v = await _fetch_upload_api_version(client, b)
+            cache[b] = v
+            return v
+
+        release_v = await one(prod)
+        profile_v = await one(prof_base)
+        debug_v = await one(debug)
+
+    return UploadServerApiVersionsOut(release=release_v, profile=profile_v, debug=debug_v)
 
 
 @app.post("/upload-server-links")
