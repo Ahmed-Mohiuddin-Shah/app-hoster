@@ -5,8 +5,22 @@
   <p class="text-center text-lg text-zinc-300 md:text-xl">
     Get the latest <span class="font-medium text-white">{{ project_name }}</span> app
   </p>
+  {% if show_platform_options %}
+  <nav class="mt-6 flex max-w-lg flex-wrap justify-center gap-2" aria-label="Platform">
+    {% for pl in switcher_platforms %}
+    <a
+      href="{{ request.url.path }}?platform={{ pl }}&build_type={{ build_type }}{% if show_platform_options %}&show_platform_options=true{% endif %}"
+      class="rounded-full border px-4 py-1.5 text-xs font-medium transition {% if pl == platform %}border-accent bg-accent/10 text-accent{% else %}border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200{% endif %}"
+    >
+      {{ platform_tab_labels.get(pl, pl | title) }}
+    </a>
+    {% endfor %}
+  </nav>
+  {% endif %}
   {% if release %}
-  <p class="mt-1 text-center text-xs text-zinc-500">{{ platform_label }} · release {{ release.version }}</p>
+  <p class="mt-1 text-center text-xs text-zinc-500">
+    {{ platform_label }} · {{ build_type }} · {{ release.version }}
+  </p>
 
   {% if release.release_notes and release.release_notes.strip() %}
   <div
@@ -44,7 +58,7 @@
   </div>
   {% else %}
   <p class="mt-6 max-w-sm text-center text-sm text-zinc-500">
-    No release build is available yet{% if platform != 'android' %} for {{ platform_label }}{% endif %}.
+    No {{ build_type }} build is available yet for {{ platform_label }}.
   </p>
   {% endif %}
 </div>

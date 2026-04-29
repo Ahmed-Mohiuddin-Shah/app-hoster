@@ -12,7 +12,7 @@ from urllib.parse import urlencode, urlparse
 
 import httpx
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -33,7 +33,6 @@ from models import (
     is_valid_semver,
     latest_by_platform,
     latest_for_platform_and_build_type,
-    latest_release_for_platform,
     media_type_for_artifact,
     sort_releases_desc,
     uploads_dir,
@@ -85,6 +84,8 @@ PLATFORM_TAB_ICON_INVERT: dict[str, bool] = {
     "web": True,
 }
 UNSUPPORTED_TAB_PLATFORMS = frozenset({"apple", "macos"})
+
+GET_LATEST_SWITCHER_PLATFORMS: tuple[str, ...] = tuple(p for p in PLATFORM_TAB_ORDER if p in PLATFORMS)
 
 try:
     TIMELINE_PER_PAGE = max(1, int(os.environ.get("TIMELINE_PER_PAGE", "8")))
@@ -305,17 +306,28 @@ def index(request: Request, db: Session = Depends(get_db)):
 @app.get("/get-latest", response_class=HTMLResponse)
 def get_latest(
     request: Request,
-    platform: str = "android",
+    platform: str | None = Query(None),
+    build_type: str | None = Query(None),
+    show_platform_options: str | None = Query(None),
     db: Session = Depends(get_db),
 ):
-    """Minimal page: latest release download link as QR + copy / download actions."""
-    p = platform.strip().lower()
+    """
+    Minimal page: latest download for a platform and build flavor (QR + copy / download).
+    Omitted query params default to platform=android and build_type=release.
+    Pass show_platform_options=true to show a platform switcher; the current platform
+    is taken from the platform query param when present.
+    """
+    p = (platform or "android").strip().lower()
+    bt = (build_type or "release").strip().lower()
     if p not in PLATFORMS:
-        raise HTTPException(status_code=400, detail="Invalid platform")
+        raise HTTPException(status_code=422, detail="Invalid platform")
+    if bt not in BUILD_TYPES:
+        raise HTTPException(status_code=422, detail="build_type must be debug, release, or profile")
 
     rows = list(db.scalars(select(Release)).all())
-    rel = latest_release_for_platform(rows, p)
+    rel = latest_for_platform_and_build_type(rows, p, bt)
     download_url = str(request.url_for("download", release_id=rel.id)) if rel else ""
+    show_switcher = _form_truthy(show_platform_options or "")
 
     return templates.TemplateResponse(
         request=request,
@@ -324,7 +336,11 @@ def get_latest(
             "request": request,
             "project_name": PROJECT_NAME,
             "platform": p,
+            "build_type": bt,
             "platform_label": PLATFORM_TAB_LABELS.get(p, p.title()),
+            "show_platform_options": show_switcher,
+            "switcher_platforms": GET_LATEST_SWITCHER_PLATFORMS,
+            "platform_tab_labels": PLATFORM_TAB_LABELS,
             "release": rel,
             "download_url": download_url,
         },
