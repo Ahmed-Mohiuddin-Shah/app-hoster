@@ -29,4 +29,20 @@ class ReleaseOut(BaseModel):
     platform: str
     artifact_kind: str
     web_url: str | None
+    force_update: bool
     created_at: datetime
+
+
+class LatestVersionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    version: str
+    server_version: str
+    build_type: str
+    platform: str
+    artifact_kind: str
+    force_update: bool
+    created_at: datetime
+    web_url: str | None
+    download_url: str

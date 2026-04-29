@@ -99,6 +99,22 @@
           class="w-full rounded-full border border-zinc-700 bg-black px-4 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:border-accent focus:outline-none"
         />
       </div>
+      <div class="flex items-start gap-3 rounded-2xl border border-zinc-800 bg-black/30 px-4 py-3">
+        <input
+          id="upload-force-update"
+          name="force_update"
+          type="checkbox"
+          value="true"
+          class="mt-0.5 h-4 w-4 shrink-0 rounded border-zinc-600 bg-black text-accent focus:ring-accent"
+        />
+        <div>
+          <label class="text-xs font-medium text-zinc-300" for="upload-force-update">Force update</label>
+          <p class="mt-0.5 text-[11px] leading-snug text-zinc-600">
+            When checked, clients that call <code class="text-zinc-500">GET /get-latest-version</code> see
+            <code class="text-zinc-500">force_update: true</code> for this build.
+          </p>
+        </div>
+      </div>
       <div>
         <label class="mb-1 block text-xs font-medium text-zinc-400" for="upload-notes"
           >Release notes <span class="font-normal text-zinc-600">(Markdown)</span></label

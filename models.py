@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from packaging.version import InvalidVersion, Version
-from sqlalchemy import DateTime, Integer, String, Text, create_engine, text
+from sqlalchemy import Boolean, DateTime, Integer, String, Text, create_engine, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
 
@@ -42,6 +42,7 @@ class Release(Base):
     platform: Mapped[str] = mapped_column(String(32), nullable=False, default="android")
     artifact_kind: Mapped[str] = mapped_column(String(32), nullable=False, default="apk")
     web_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    force_update: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -90,6 +91,8 @@ def migrate_db() -> None:
             conn.execute(text("ALTER TABLE releases ADD COLUMN artifact_kind VARCHAR(32) NOT NULL DEFAULT 'apk'"))
         if "web_url" not in cols:
             conn.execute(text("ALTER TABLE releases ADD COLUMN web_url TEXT"))
+        if "force_update" not in cols:
+            conn.execute(text("ALTER TABLE releases ADD COLUMN force_update INTEGER NOT NULL DEFAULT 0"))
         conn.execute(
             text(
                 "UPDATE releases SET platform = 'android' WHERE platform IS NULL OR platform = ''"
@@ -133,6 +136,14 @@ def latest_for_platform(releases: list[Release], platform: str) -> Release | Non
 def latest_release_for_platform(releases: list[Release], platform: str) -> Release | None:
     """Newest semver among release builds only (excludes profile/debug). Used for header version labels."""
     rows = [r for r in filter_by_platform(releases, platform) if r.build_type == "release"]
+    return sort_releases_desc(rows)[0] if rows else None
+
+
+def latest_for_platform_and_build_type(
+    releases: list[Release], platform: str, build_type: str
+) -> Release | None:
+    """Newest semver for a platform and build flavor (debug / release / profile)."""
+    rows = [r for r in releases if r.platform == platform and r.build_type == build_type]
     return sort_releases_desc(rows)[0] if rows else None
 
 

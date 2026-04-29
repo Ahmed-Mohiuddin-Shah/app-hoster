@@ -20,6 +20,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from models import (
+    BUILD_TYPES,
     PLATFORMS,
     Release,
     SessionLocal,
@@ -31,13 +32,14 @@ from models import (
     paginate_timeline_versions,
     is_valid_semver,
     latest_by_platform,
+    latest_for_platform_and_build_type,
     latest_release_for_platform,
     media_type_for_artifact,
     sort_releases_desc,
     uploads_dir,
 )
 from release_notes_markup import release_notes_html
-from schemas import ReleaseOut, UploadServerApiVersionsIn, UploadServerApiVersionsOut
+from schemas import LatestVersionOut, ReleaseOut, UploadServerApiVersionsIn, UploadServerApiVersionsOut
 
 load_dotenv()
 
@@ -219,6 +221,10 @@ def build_timeline_pager(request: Request, platform: str, meta: dict) -> dict | 
     return out
 
 
+def _form_truthy(raw: str) -> bool:
+    return (raw or "").strip().lower() in ("true", "1", "on", "yes")
+
+
 def duplicate_release(
     db: Session,
     platform: str,
@@ -322,6 +328,44 @@ def get_latest(
             "release": rel,
             "download_url": download_url,
         },
+    )
+
+
+@app.get("/get-latest-version", response_model=LatestVersionOut)
+def get_latest_version(
+    request: Request,
+    platform: str,
+    build_type: str,
+    db: Session = Depends(get_db),
+):
+    """
+    Latest release for a platform and build flavor (debug / release / profile).
+    Clients can compare `version` / `server_version` and honor `force_update`.
+    """
+    p = platform.strip().lower()
+    bt = build_type.strip().lower()
+    if p not in PLATFORMS:
+        raise HTTPException(status_code=422, detail="Invalid platform")
+    if bt not in BUILD_TYPES:
+        raise HTTPException(status_code=422, detail="build_type must be debug, release, or profile")
+
+    rows = list(db.scalars(select(Release)).all())
+    rel = latest_for_platform_and_build_type(rows, p, bt)
+    if rel is None:
+        raise HTTPException(status_code=404, detail="No release for this platform and build type")
+
+    download_url = str(request.url_for("download", release_id=rel.id))
+    return LatestVersionOut(
+        id=rel.id,
+        version=rel.version,
+        server_version=rel.server_version,
+        build_type=rel.build_type,
+        platform=rel.platform,
+        artifact_kind=rel.artifact_kind,
+        force_update=rel.force_update,
+        created_at=rel.created_at,
+        web_url=rel.web_url,
+        download_url=download_url,
     )
 
 
@@ -492,6 +536,7 @@ async def upload(
     release_notes: str = Form(""),
     secret_key: str = Form(...),
     web_url: str = Form(""),
+    force_update: str = Form(""),
     file: UploadFile | None = File(default=None),
 ):
     if not UPLOAD_SECRET:
@@ -505,6 +550,7 @@ async def upload(
     version = version.strip()
     server_version = server_version.strip()
     web_url = (web_url or "").strip()
+    force_flag = _form_truthy(force_update)
 
     if platform not in PLATFORMS:
         raise HTTPException(status_code=422, detail="Invalid platform")
@@ -552,6 +598,7 @@ async def upload(
             platform=platform,
             artifact_kind="web",
             web_url=web_url,
+            force_update=force_flag,
         )
         db.add(row)
         db.commit()
@@ -588,6 +635,7 @@ async def upload(
         platform=platform,
         artifact_kind=artifact_kind,
         web_url=None,
+        force_update=force_flag,
     )
     try:
         db.add(row)
