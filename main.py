@@ -28,6 +28,9 @@ from models import (
     artifact_extension,
     build_timeline_tree,
     filter_by_platform,
+    GET_LATEST_TRACKED_PLATFORMS,
+    get_get_latest_stat_counts,
+    increment_get_latest_stat,
     init_db,
     paginate_timeline_versions,
     is_valid_semver,
@@ -38,7 +41,14 @@ from models import (
     uploads_dir,
 )
 from release_notes_markup import release_notes_html
-from schemas import LatestVersionOut, ReleaseOut, UploadServerApiVersionsIn, UploadServerApiVersionsOut
+from schemas import (
+    GetLatestStatCountsOut,
+    GetLatestStatEventIn,
+    LatestVersionOut,
+    ReleaseOut,
+    UploadServerApiVersionsIn,
+    UploadServerApiVersionsOut,
+)
 
 load_dotenv()
 
@@ -329,6 +339,11 @@ def get_latest(
     download_url = str(request.url_for("download", release_id=rel.id)) if rel else ""
     show_switcher = _form_truthy(show_platform_options or "")
 
+    show_get_latest_stats = rel is not None and bt == "release" and p in GET_LATEST_TRACKED_PLATFORMS
+    latest_stats_download, latest_stats_share = (0, 0)
+    if show_get_latest_stats:
+        latest_stats_download, latest_stats_share = get_get_latest_stat_counts(db, p)
+
     return templates.TemplateResponse(
         request=request,
         name="get_latest.html",
@@ -343,8 +358,27 @@ def get_latest(
             "platform_tab_labels": PLATFORM_TAB_LABELS,
             "release": rel,
             "download_url": download_url,
+            "show_get_latest_stats": show_get_latest_stats,
+            "latest_stats_download": latest_stats_download,
+            "latest_stats_share": latest_stats_share,
         },
     )
+
+
+@app.post("/get-latest/stats", response_model=GetLatestStatCountsOut, name="post_get_latest_stats")
+def post_get_latest_stats(body: GetLatestStatEventIn, db: Session = Depends(get_db)):
+    p = body.platform.strip().lower()
+    bt = body.build_type.strip().lower()
+    if p not in GET_LATEST_TRACKED_PLATFORMS:
+        raise HTTPException(status_code=422, detail="Invalid platform for stats")
+    if bt != "release":
+        raise HTTPException(status_code=422, detail="Stats are only recorded for release builds")
+    rows = list(db.scalars(select(Release)).all())
+    rel = latest_for_platform_and_build_type(rows, p, bt)
+    if rel is None:
+        raise HTTPException(status_code=404, detail="No release for this platform and build type")
+    d, s = increment_get_latest_stat(db, p, body.kind)
+    return GetLatestStatCountsOut(download_count=d, share_count=s)
 
 
 @app.get("/get-latest-version", response_model=LatestVersionOut)

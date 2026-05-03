@@ -2,6 +2,26 @@
 {% block title %}Latest · {{ project_name }}{% endblock %}
 {% block content %}
 <div class="flex min-h-screen flex-col items-center justify-center px-4 py-12">
+  {% if show_get_latest_stats %}
+  <div
+    id="latest-stats-bar"
+    class="mb-5 grid w-full max-w-md grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-4 gap-y-2 px-2 text-center"
+    role="group"
+    aria-label="Global downloaded and shared counts"
+  >
+    <span class="text-base font-bold tracking-wide text-zinc-300">Downloaded</span>
+    <span class="text-base font-normal text-zinc-600" aria-hidden="true">|</span>
+    <span class="text-base font-bold tracking-wide text-zinc-300">Shared</span>
+
+    <span id="latest-stats-downloads" class="text-4xl font-extrabold tabular-nums text-white md:text-5xl">{{ latest_stats_download }}</span>
+    <span class="text-3xl font-light text-zinc-600 md:text-4xl" aria-hidden="true">|</span>
+    <span id="latest-stats-shares" class="text-4xl font-extrabold tabular-nums text-white md:text-5xl">{{ latest_stats_share }}</span>
+
+    <span class="text-sm font-semibold text-zinc-500">times</span>
+    <span class="text-sm font-normal text-zinc-700" aria-hidden="true">|</span>
+    <span class="text-sm font-semibold text-zinc-500">times</span>
+  </div>
+  {% endif %}
   <p class="text-center text-lg text-zinc-300 md:text-xl">
     Get the latest <span class="font-medium text-white">{{ project_name }}</span> app
   </p>
@@ -69,10 +89,57 @@
 <script src="{{ request.url_for('static', path='vendor/qr-code-styling.js') }}"></script>
 <script>
   (function () {
+    const trackStats = {{ show_get_latest_stats | tojson }};
+    const statsUrl = {{ ('' ~ request.url_for('post_get_latest_stats')) | tojson }};
+    const pagePlatform = {{ platform | tojson }};
+    const pageBuildType = {{ build_type | tojson }};
+
+    function updateStatsBar(data) {
+      if (!data) return;
+      const dEl = document.getElementById("latest-stats-downloads");
+      const sEl = document.getElementById("latest-stats-shares");
+      if (dEl && typeof data.download_count === "number") dEl.textContent = String(data.download_count);
+      if (sEl && typeof data.share_count === "number") sEl.textContent = String(data.share_count);
+    }
+
     const wrap = document.getElementById("qr-wrap");
     const copyBtn = document.getElementById("copy-btn");
     const status = document.getElementById("copy-status");
+    const downloadBtn = document.getElementById("download-btn");
     const url = (copyBtn && copyBtn.getAttribute("data-url")) || "";
+
+    let downloadRecorded = false;
+    let shareRecorded = false;
+
+    if (downloadBtn && trackStats) {
+      const href = downloadBtn.getAttribute("href") || "";
+      downloadBtn.addEventListener("click", function (e) {
+        if (downloadRecorded) return;
+        e.preventDefault();
+        fetch(statsUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            kind: "download",
+            platform: pagePlatform,
+            build_type: pageBuildType,
+          }),
+          keepalive: true,
+        })
+          .then(function (r) {
+            if (!r.ok) throw new Error("stats failed");
+            return r.json();
+          })
+          .then(function (data) {
+            downloadRecorded = true;
+            updateStatsBar(data);
+            window.location.href = href;
+          })
+          .catch(function () {
+            window.location.href = href;
+          });
+      });
+    }
 
     if (wrap && typeof QRCodeStyling !== "undefined") {
       wrap.innerHTML = "";
@@ -99,6 +166,23 @@
         try {
           await navigator.clipboard.writeText(u);
           status.textContent = "Link copied to clipboard.";
+          if (trackStats && !shareRecorded) {
+            try {
+              const r = await fetch(statsUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  kind: "share",
+                  platform: pagePlatform,
+                  build_type: pageBuildType,
+                }),
+              });
+              if (r.ok) {
+                shareRecorded = true;
+                updateStatsBar(await r.json());
+              }
+            } catch (_) {}
+          }
         } catch (e) {
           status.textContent = "Copy failed — select the download link manually.";
         }

@@ -8,7 +8,7 @@ from typing import Any
 
 from packaging.version import InvalidVersion, Version
 from sqlalchemy import Boolean, DateTime, Integer, String, Text, create_engine, text
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
 
 class Base(DeclarativeBase):
@@ -48,6 +48,19 @@ class Release(Base):
         nullable=False,
         default=lambda: datetime.now(timezone.utc),
     )
+
+
+class GetLatestReleaseStat(Base):
+    """Global per-platform counters for get-latest (release builds only; web excluded)."""
+
+    __tablename__ = "get_latest_release_stats"
+
+    platform: Mapped[str] = mapped_column(String(32), primary_key=True)
+    download_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    share_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
+GET_LATEST_TRACKED_PLATFORMS: frozenset[str] = PLATFORMS - {"web"}
 
 
 def is_valid_semver(v: str) -> bool:
@@ -108,6 +121,30 @@ def migrate_db() -> None:
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
     migrate_db()
+
+
+def get_get_latest_stat_counts(db: Session, platform: str) -> tuple[int, int]:
+    row = db.get(GetLatestReleaseStat, platform)
+    if row is None:
+        return (0, 0)
+    return (row.download_count, row.share_count)
+
+
+def increment_get_latest_stat(db: Session, platform: str, kind: str) -> tuple[int, int]:
+    if kind not in ("download", "share"):
+        raise ValueError("kind must be 'download' or 'share'")
+    row = db.get(GetLatestReleaseStat, platform)
+    if row is None:
+        row = GetLatestReleaseStat(platform=platform, download_count=0, share_count=0)
+        db.add(row)
+        db.flush()
+    if kind == "download":
+        row.download_count += 1
+    else:
+        row.share_count += 1
+    db.commit()
+    db.refresh(row)
+    return (row.download_count, row.share_count)
 
 
 def uploads_dir() -> Path:

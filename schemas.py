@@ -1,6 +1,7 @@
 from datetime import datetime
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class UploadServerApiVersionsIn(BaseModel):
@@ -46,3 +47,14 @@ class LatestVersionOut(BaseModel):
     created_at: datetime
     web_url: str | None
     download_url: str
+
+
+class GetLatestStatEventIn(BaseModel):
+    kind: Literal["download", "share"]
+    platform: str = Field(min_length=1, max_length=32)
+    build_type: str = Field(min_length=1, max_length=32)
+
+
+class GetLatestStatCountsOut(BaseModel):
+    download_count: int
+    share_count: int
